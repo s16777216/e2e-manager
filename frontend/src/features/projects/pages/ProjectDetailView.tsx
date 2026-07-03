@@ -7,7 +7,18 @@ import { StatusBadge } from "../../../components/custom/StatusBadge";
 import { NewGroupSheet } from "../components/NewGroupSheet";
 import { GroupEditSheet } from "../components/GroupEditSheet";
 import { api } from "../../../lib/api";
-import { Plus, Play, Edit2, Folder, ChevronRight, ChevronDown, Trash2, FileText, Loader2 } from "lucide-react";
+import {
+  Plus,
+  Play,
+  Edit2,
+  Trash2,
+  FileText,
+  Loader2,
+  FolderPlus,
+  FilePlus,
+  FolderClosed,
+  FolderOpen,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -67,8 +78,6 @@ export default function ProjectDetailView() {
   const {
     groups,
     groupTree,
-    expandedGroups,
-    setExpandedGroups,
     handleCreateSubgroup,
     handleDeleteGroup,
     loadGroups,
@@ -170,10 +179,12 @@ export default function ProjectDetailView() {
   }
 
   // 統一的展開狀態變更與懶加載攔截器
-  const handleExpandedChange = (updater: React.SetStateAction<ExpandedState>) => {
+  const handleExpandedChange = (
+    updater: React.SetStateAction<ExpandedState>,
+  ) => {
     let next: ExpandedState;
     if (typeof updater === "function") {
-      next = (updater as Function)(expanded);
+      next = updater(expanded);
     } else {
       next = updater;
     }
@@ -189,7 +200,8 @@ export default function ProjectDetailView() {
         if (groupId.startsWith("loading-")) return;
         if (!testcasesMap[groupId] && !loadingMap[groupId]) {
           setLoadingMap((prev) => ({ ...prev, [groupId]: true }));
-          api.getTestcases(groupId)
+          api
+            .getTestcases(groupId)
             .then((data) => {
               setTestcasesMap((prev) => ({ ...prev, [groupId]: data }));
             })
@@ -305,7 +317,10 @@ export default function ProjectDetailView() {
     });
   };
 
-  const nestedTree = useMemo(() => buildNestedTree(groupTree), [groupTree, testcasesMap, loadingMap]);
+  const nestedTree = useMemo(
+    () => buildNestedTree(groupTree),
+    [groupTree, testcasesMap, loadingMap],
+  );
 
   // 扁平化群組列表 (供測試案例 Dialog 下拉選單使用)
   const flatGroups = (() => {
@@ -355,32 +370,13 @@ export default function ProjectDetailView() {
             >
               <div className="flex items-center gap-2 min-w-0">
                 {type === "group" ? (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      row.toggleExpanded();
-                    }}
-                    className="p-0.5 hover:bg-zinc-800 rounded text-zinc-500 hover:text-zinc-200 transition-colors"
-                  >
-                    {isExpanded ? (
-                      <ChevronDown size={14} />
-                    ) : (
-                      <ChevronRight size={14} />
-                    )}
-                  </button>
+                  isExpanded ? (
+                    <FolderOpen size={16} className="text-yellow-400" />
+                  ) : (
+                    <FolderClosed size={16} className="text-yellow-400" />
+                  )
                 ) : (
-                  <div className="w-5" />
-                )}
-
-                {type === "group" ? (
-                  <Folder
-                    size={15}
-                    className={
-                      selectedGroupId === id ? "text-primary" : "text-zinc-500"
-                    }
-                  />
-                ) : (
-                  <FileText size={15} className="text-zinc-600" />
+                  <FileText size={15} className="text-blue-400" />
                 )}
 
                 <span className="truncate max-w-[280px]" title={name}>
@@ -424,7 +420,20 @@ export default function ProjectDetailView() {
                     }}
                     className="p-1.5 hover:bg-zinc-800 rounded text-zinc-500 hover:text-zinc-100 transition-colors"
                   >
-                    <Plus size={12} />
+                    <FolderPlus size={12} />
+                  </button>
+                  <button
+                    title="建立測試案例"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (selectedGroupId) {
+                        setTargetGroupId(selectedGroupId);
+                      }
+                      setShowNewTestCaseModal(true);
+                    }}
+                    className="p-1.5 hover:bg-zinc-800 rounded text-zinc-500 hover:text-zinc-100 transition-colors"
+                  >
+                    <FilePlus size={12} />
                   </button>
                   <button
                     title="刪除群組"
@@ -458,16 +467,20 @@ export default function ProjectDetailView() {
         },
       },
       {
-        accessorKey: "type",
-        header: "類型",
+        accessorKey: "lastStatus",
+        header: () => <div className="text-center">執行狀態</div>,
         cell: ({ row }) => {
-          const type = row.original.type;
-          if (type === "loading") return "-";
-          return (
-            <span className="text-xs text-zinc-500 uppercase tracking-wider">
-              {type === "group" ? "群組" : "測試案例"}
-            </span>
-          );
+          const status = row.original.lastStatus;
+          if (row.original.type === "testcase" && status) {
+            return (
+              <div className="text-center">
+                <div className="inline-flex">
+                  <StatusBadge status={status} />
+                </div>
+              </div>
+            );
+          }
+          return <div className="text-center text-zinc-600">-</div>;
         },
       },
       {
@@ -482,25 +495,8 @@ export default function ProjectDetailView() {
           );
         },
       },
-      {
-        accessorKey: "lastStatus",
-        header: () => <div className="text-right">最後執行狀態</div>,
-        cell: ({ row }) => {
-          const status = row.original.lastStatus;
-          if (row.original.type === "testcase" && status) {
-            return (
-              <div className="text-right">
-                <div className="inline-flex">
-                  <StatusBadge status={status} />
-                </div>
-              </div>
-            );
-          }
-          return <div className="text-right text-zinc-600">-</div>;
-        },
-      },
     ],
-    [selectedGroupId, groups],
+    [handleRunGroup, groups, selectedGroupId, triggerDeleteTestCase],
   );
 
   // 處理新增群組觸發

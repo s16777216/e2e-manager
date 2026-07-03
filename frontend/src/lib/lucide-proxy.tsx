@@ -1,9 +1,6 @@
 /* eslint-disable */
 export { SettingsIcon as Settings } from "../components/icon/settings";
-export {
-  FoldersIcon as Folders,
-  FoldersIcon as FolderOpen,
-} from "../components/icon/folders";
+export { FoldersIcon as Folders } from "../components/icon/folders";
 export { FolderPlusIcon as FolderPlus } from "../components/icon/folder-plus";
 export {
   HistoryIcon as History,
