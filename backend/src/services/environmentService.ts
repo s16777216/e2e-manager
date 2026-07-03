@@ -1,3 +1,10 @@
+import * as vm from "vm";
+import * as crypto from "crypto";
+
+export interface RunContext {
+  snapshots: Map<string, string>;
+}
+
 /**
  * 合併兩組 Playwright 格式的 Cookie 陣列
  * 以 name + domain + path 作為唯一鍵，子層覆蓋父層
@@ -64,6 +71,73 @@ export function mergeVariables(...sources: any[]): Record<string, VariableItem> 
   return merged;
 }
 
+const WHITELISTED_GLOBALS = new Set([
+  "Math",
+  "Date",
+  "JSON",
+  "String",
+  "Number",
+  "Boolean",
+  "Array",
+  "Object",
+  "parseInt",
+  "parseFloat",
+  "isNaN",
+  "crypto",
+  "$vars"
+]);
+
+export function createSnapshotProxy(context?: RunContext): any {
+  const map = context?.snapshots || new Map<string, string>();
+  return new Proxy({}, {
+    get(target, prop) {
+      if (typeof prop === "string") {
+        return map.get(prop);
+      }
+      return undefined;
+    },
+    set(target, prop, value) {
+      if (typeof prop === "string") {
+        map.set(prop, String(value));
+        return true;
+      }
+      return false;
+    }
+  });
+}
+
+export function evaluateExpression(
+  expr: string,
+  flatVariables: Record<string, string>,
+  context?: RunContext
+): string {
+  const sandbox = {
+    Math,
+    Date,
+    JSON,
+    String,
+    Number,
+    Boolean,
+    Array,
+    Object,
+    parseInt,
+    parseFloat,
+    isNaN,
+    crypto: {
+      randomUUID: () => crypto.randomUUID()
+    },
+    ...flatVariables,
+    $vars: createSnapshotProxy(context),
+    process: undefined,
+    require: undefined,
+    global: undefined,
+  };
+
+  const vmContext = vm.createContext(sandbox);
+  const result = vm.runInContext(expr, vmContext, { timeout: 100 });
+  return String(result ?? "");
+}
+
 /**
  * 將 {{variableName}} 替換為變數值
  * 若遇到未定義變數，保留原始佔位符，並可呼叫 onUndefined 回呼
@@ -71,18 +145,36 @@ export function mergeVariables(...sources: any[]): Record<string, VariableItem> 
 export function interpolateString(
   template: string,
   variables: Record<string, string>,
+  context?: RunContext | ((varName: string) => void),
   onUndefined?: (varName: string) => void
 ): string {
   if (typeof template !== "string") return template;
+
+  let actualContext: RunContext | undefined;
+  let actualOnUndefined = onUndefined;
+
+  if (typeof context === "function") {
+    actualOnUndefined = context;
+    actualContext = undefined;
+  } else {
+    actualContext = context;
+  }
+
   return template.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
     const trimmed = varName.trim();
     if (trimmed in variables) {
       return variables[trimmed];
     }
-    if (onUndefined) {
-      onUndefined(trimmed);
+
+    const isSimpleIdentifier = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(trimmed);
+    if (isSimpleIdentifier && !WHITELISTED_GLOBALS.has(trimmed)) {
+      if (actualOnUndefined) {
+        actualOnUndefined(trimmed);
+      }
+      return match;
     }
-    return match;
+
+    return evaluateExpression(trimmed, variables, actualContext);
   });
 }
 
@@ -92,18 +184,19 @@ export function interpolateString(
 export function interpolateObject(
   obj: any,
   variables: Record<string, string>,
+  context?: RunContext | ((varName: string) => void),
   onUndefined?: (varName: string) => void
 ): any {
   if (typeof obj === "string") {
-    return interpolateString(obj, variables, onUndefined);
+    return interpolateString(obj, variables, context, onUndefined);
   }
   if (Array.isArray(obj)) {
-    return obj.map(item => interpolateObject(item, variables, onUndefined));
+    return obj.map(item => interpolateObject(item, variables, context, onUndefined));
   }
   if (obj && typeof obj === "object") {
     const result: Record<string, any> = {};
     for (const [key, value] of Object.entries(obj)) {
-      result[key] = interpolateObject(value, variables, onUndefined);
+      result[key] = interpolateObject(value, variables, context, onUndefined);
     }
     return result;
   }

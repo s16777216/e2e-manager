@@ -7,7 +7,7 @@ import { Task } from "./entities/Task.js";
 import { Project } from "./entities/Project.js";
 import { TestGroup } from "./entities/TestGroup.js";
 import { Testcase } from "./entities/Testcase.js";
-import { mergeCookies, mergeLocalStorage, mergeVariables, interpolateString, interpolateObject, VariableItem } from "./services/environmentService.js";
+import { mergeCookies, mergeLocalStorage, mergeVariables, interpolateString, interpolateObject, VariableItem, RunContext } from "./services/environmentService.js";
 
 export class TaskQueue {
   private static instance: TaskQueue | null = null;
@@ -88,6 +88,8 @@ export class TaskQueue {
    */
   public async executeJob(runId: string): Promise<void> {
     console.log(`[Worker] 開始執行任務：${runId}`);
+
+    const runContext: RunContext = { snapshots: new Map() };
 
     // 獲取任務詳情與其關聯的測試案例
     const run = await AppDataSource.getRepository(TestRun).findOne({
@@ -189,8 +191,8 @@ export class TaskQueue {
       }
     };
 
-    mergedCookies = interpolateObject(mergedCookies, flatVariables, onUndefined);
-    mergedLocalStorage = interpolateObject(mergedLocalStorage, flatVariables, onUndefined);
+    mergedCookies = interpolateObject(mergedCookies, flatVariables, runContext, onUndefined);
+    mergedLocalStorage = interpolateObject(mergedLocalStorage, flatVariables, runContext, onUndefined);
 
     const browserManager = new BrowserManager();
 
@@ -246,9 +248,36 @@ export class TaskQueue {
       const builder = await E2EGraphBuilder.create(browserManager);
       const graph = builder.buildGraph();
 
-      const stepsArray = (fullTestcase.steps || []).map(s => interpolateString(s.action, flatVariables, onUndefined));
-      const expectedsArray = (fullTestcase.steps || []).map(s => interpolateString(s.expected || "", flatVariables, onUndefined));
-      const interpolatedExpected = interpolateString(testcase.expected, flatVariables, onUndefined);
+      let stepsArray: string[] = [];
+      let expectedsArray: string[] = [];
+      let interpolatedExpected = "";
+
+      try {
+        stepsArray = (fullTestcase.steps || []).map(s => interpolateString(s.action, flatVariables, runContext, onUndefined));
+        expectedsArray = (fullTestcase.steps || []).map(s => interpolateString(s.expected || "", flatVariables, runContext, onUndefined));
+        interpolatedExpected = interpolateString(testcase.expected, flatVariables, runContext, onUndefined);
+      } catch (interpolateError: any) {
+        console.error(`[Worker] 任務 ${runId} 變數插值失敗：`, interpolateError);
+        try {
+          const failPayload = TaskFSM.complete("FAIL", `變數插值失敗：${interpolateError.message}`);
+          await AppDataSource.getRepository(TestRun).update(runId, failPayload);
+
+          // 發布事件
+          await AppDataSource.query(`SELECT pg_notify('test_run_logs', $1)`, [
+            JSON.stringify({
+              runId: runId,
+              status: failPayload.status,
+              finalResult: "FAIL",
+              finalReason: failPayload.finalReason,
+              event: "completed",
+              timestamp: new Date().toISOString(),
+            }),
+          ]);
+        } catch (dbErr: any) {
+          console.error("[Worker] 寫入資料庫失敗狀態失敗：", dbErr.message);
+        }
+        return; // 中斷執行 (將執行 finally 以清理資源)
+      }
 
       if (undefinedVars.length > 0) {
         console.warn(`[Worker] 偵測到未定義的環境變數：${undefinedVars.join(", ")}`);

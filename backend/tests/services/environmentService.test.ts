@@ -95,6 +95,43 @@ describe("Environment Service - Merging Logic", () => {
       expect(interpolateString("Hello {{username}} on {{host}}", vars)).toBe("Hello admin on localhost");
       expect(interpolateString("Keep {{missing}} intact", vars)).toBe("Keep {{missing}} intact");
     });
+
+    it("should evaluate JS math expression", () => {
+      expect(interpolateString("result = {{1 + 1}}", {})).toBe("result = 2");
+    });
+
+    it("should access native JS globals", () => {
+      const timestampStr = interpolateString("{{Date.now()}}", {});
+      expect(/^\d+$/.test(timestampStr)).toBe(true);
+    });
+
+    it("should fallback to static variables", () => {
+      const vars = { username: "John" };
+      expect(interpolateString("{{username}}", vars)).toBe("John");
+    });
+
+    it("should reference static variable in JS expression", () => {
+      const vars = { username: "John" };
+      expect(interpolateString("Hello {{'Mr. ' + username}}", vars)).toBe("Hello Mr. John");
+    });
+
+    it("should prohibit access to process object in sandbox", () => {
+      expect(() => interpolateString("{{process.exit(1)}}", {})).toThrow();
+    });
+
+    it("should throw timeout error for infinite loops in expression", () => {
+      expect(() => interpolateString("{{while(true){}}}", {})).toThrow();
+    });
+
+    it("should support named snapshots via $vars Proxy", () => {
+      const context = { snapshots: new Map<string, string>() };
+      const template = "{{$vars.tempId ??= crypto.randomUUID()}} and {{$vars.tempId}}";
+      const result = interpolateString(template, {}, context);
+      
+      const parts = result.split(" and ");
+      expect(parts[0]).toBe(parts[1]); // Ensure both evaluations return the same generated UUID
+      expect(context.snapshots.get("tempId")).toBe(parts[0]);
+    });
   });
 
   describe("interpolateObject", () => {

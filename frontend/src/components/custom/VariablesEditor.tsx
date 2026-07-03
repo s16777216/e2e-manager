@@ -240,7 +240,15 @@ export function VariablesEditor({ variables, onChange }: VariablesEditorProps) {
               {modalMode === "add" ? "新增環境變數" : "編輯環境變數"}
             </DialogTitle>
             <DialogDescription className="text-zinc-400 text-xs">
-              請輸入環境變數的名稱與值。變數名稱將被用來進行模板替換。
+              請輸入環境變數的名稱與值。變數名稱將被用來進行模板替換。支援 JS 表達式，如{" "}
+              <code className="bg-zinc-950/80 px-1 py-0.5 rounded font-mono text-zinc-300">
+                {"{{crypto.randomUUID()}}"}
+              </code>
+              ，及快照{" "}
+              <code className="bg-zinc-950/80 px-1 py-0.5 rounded font-mono text-zinc-300">
+                {"{{$vars.myId ??= crypto.randomUUID()}}"}
+              </code>
+              。
             </DialogDescription>
           </DialogHeader>
 
