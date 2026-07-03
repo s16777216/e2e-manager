@@ -4,17 +4,17 @@
 
 ## What Changes
 
-- 在插值引擎中新增**內建函式語法** `{{$functionName("arg1", "arg2")}}` 的解析與執行能力
-- 提供**時間類**內建函式：`$timestamp()`、`$now(format?)`、`$date()`、`$datetime()`
-- 提供**隨機類**內建函式：`$random_int(min?, max?)`、`$random_float(min?, max?)`、`$random_uuid()`、`$random_string(len?)`
-- 支援**命名快照 (Named Snapshot)**：在函式的最後一個參數傳入 `"@snapshotKey"` 格式，同一個 TestRun 中相同 snapshotKey 只計算一次並快取，後續呼叫返回相同值
-- 內建函式的插值點與靜態變數相同：step action、step expected、initCookies、initLocalStorage
+- 在插值引擎中新增**JS 表達式沙箱** `{{expression}}` 的解析與執行能力，使用 Node.js 的 `vm` 模組執行
+- 沙箱內可存取常用的內建 JavaScript 物件（`Math`, `Date`, `JSON`, `crypto` 等）及目前已合併的靜態變數（如 `username`）
+- 支援**命名快照 (Named Snapshot)**：藉由 `$vars` Proxy，利用 JS 原生 `??=` 語法，例如 `{{$vars.account_id ??= crypto.randomUUID()}}`，同一個 TestRun 中相同 snapshotKey 只計算一次並快取，後續呼叫返回相同值
+- 當 JS 表達式執行出錯（語法錯誤、執行期錯誤、超時）時，系統會丟出 Exception，中斷目前步驟的執行並回報錯誤
+- JS 表達式插值點與靜態變數相同：step action、step expected、initCookies、initLocalStorage
 
 ## Capabilities
 
 ### New Capabilities
 
-- `builtin-dynamic-variables`: 插值引擎支援內建動態函式呼叫（語法解析、函式執行、命名快照快取），並提供一組預設內建函式庫（時間類、隨機類）
+- `builtin-dynamic-variables`: 插值引擎支援 JS 表達式沙箱求值與命名快照快取，整合 Node.js `vm` 模組
 
 ### Modified Capabilities
 
@@ -22,8 +22,6 @@
 
 ## Impact
 
-- **後端** `backend/src/services/environmentService.ts`：擴展 `interpolateString` 與 `interpolateObject` 的插值邏輯
-- **後端** `backend/src/services/builtinFunctions.ts`（新增）：內建函式庫實作
-- **後端** `backend/src/queue.ts`：在 `executeJob` 中建立 `RunContext` 並傳遞給所有插值呼叫
-- **外部依賴**：考慮引入 `dayjs`（~2KB）以支援彈性日期格式化；若功能需求簡單可考慮手動實作
-- **前端**：不需要改動核心邏輯；可選擇性更新 `VariablesEditor.tsx` 的說明文字，提示使用者可輸入內建函式語法
+- **後端** `backend/src/services/environmentService.ts`：擴展 `interpolateString` 與 `interpolateObject`，引入 `vm` 模組進行 JS 表達式沙箱執行
+- **後端** `backend/src/queue.ts`：在 `executeJob` 中建立 `RunContext` 並傳遞給所有插值呼叫，捕獲插值拋出的 Exception 以終止步驟執行
+- **前端**：不需要改動核心邏輯；可選擇性更新 `VariablesEditor.tsx` 的說明文字，提示使用者可輸入 JS 表達式語法

@@ -1,39 +1,37 @@
-## 1. 依賴與型別基礎
+## 1. 基礎與型別定義
 
-- [ ] 1.1 安裝 `dayjs` 依賴：在 `backend/package.json` 新增 `dayjs`，並執行 `npm install`
-- [ ] 1.2 在 `backend/src/services/environmentService.ts` 定義並匯出 `RunContext` interface：`{ snapshots: Map<string, string> }`
+- [ ] 1.1 在 `backend/src/services/environmentService.ts` 定義並匯出 `RunContext` 介面：`{ snapshots: Map<string, string> }`
+- [ ] 1.2 在 `backend/src/services/environmentService.ts` 中導入 Node.js 的 `vm` 與 `crypto` 模組
 
-## 2. 內建函式庫
+## 2. JS 表達式沙箱與 Proxy 實作
 
-- [ ] 2.1 建立 `backend/src/services/builtinFunctions.ts`，定義 `BuiltinFn` 型別：`(args: string[], context?: RunContext) => string`
-- [ ] 2.2 實作時間類函式：`$timestamp(unit?)`, `$now(format?)`, `$date()`, `$datetime()`
-- [ ] 2.3 實作隨機類函式：`$random_int(min?, max?)`, `$random_float(min?, max?)`, `$random_uuid()`, `$random_string(len?)`
-- [ ] 2.4 建立 `BUILTIN_FUNCTIONS` map，將所有函式名稱對應到實作
-- [ ] 2.5 實作 `parseBuiltinCall(expr: string)` 解析器：從 `$fn("a","b","@snap")` 解析出 `{ name, args, snapshotKey }`
-- [ ] 2.6 實作 `evalBuiltinCall(name, args, snapshotKey, context?)` 函式，處理命名快照邏輯（先查 `context.snapshots`，未命中則執行函式並存入快照）
+- [ ] 2.1 實作 `createSnapshotProxy(context?: RunContext): any` 函式：以 Proxy 對接 `context.snapshots` Map，支援 getter 讀取與 setter 寫入，以配合 `??=` 運算子
+- [ ] 2.2 實作 `evaluateExpression(expr: string, flatVariables: Record<string, string>, context?: RunContext): string` 函式
+- [ ] 2.3 在 `evaluateExpression` 中建立 sandbox 物件，包含白名單：`Math`, `Date`, `JSON`, `String`, `Number`, `Boolean`, `Array`, `Object`, `parseInt`, `parseFloat`, `isNaN`, `crypto`, 所有 `flatVariables` 常數，以及 `$vars` (Snapshot Proxy)
+- [ ] 2.4 呼叫 `vm.createContext(sandbox)` 並調用 `vm.runInContext(expr, context, { timeout: 100 })` 執行求值，將結果轉為字串回傳
+- [ ] 2.5 在 `evaluateExpression` 中加入 Try-Catch，若拋出錯誤，則直接向上 Throw
 
-## 3. 插值引擎擴展
+## 3. 插值引擎修改與分流
 
-- [ ] 3.1 更新 `interpolateString` 的函式簽名，新增可選的 `context?: RunContext` 參數（放在 `onUndefined` 之前）
-- [ ] 3.2 更新 `interpolateString` 的正則表達式，使其能同時匹配 `{{$fn(args)}}` 與 `{{varName}}` 兩種模式
-- [ ] 3.3 在 `interpolateString` 的替換回呼中，加入 `$` 前綴分流邏輯：若為函式呼叫則呼叫 `evalBuiltinCall`，否則走現有靜態查表邏輯
-- [ ] 3.4 更新 `interpolateObject` 的函式簽名，傳遞 `context` 至遞迴呼叫的 `interpolateString`
+- [ ] 3.1 更新 `interpolateString(template, variables, context?, onUndefined?)` 的函式簽名，加入 `context?: RunContext`
+- [ ] 3.2 修改 `interpolateString` 的正則替換，將匹配到的內容丟給 `evaluateExpression` 求值
+- [ ] 3.3 若 `evaluateExpression` 拋出錯誤，`interpolateString` 應直接向上拋出（不吃掉 Exception，以便中斷步驟）
+- [ ] 3.4 更新 `interpolateObject(obj, variables, context?, onUndefined?)` 傳遞 `context` 參數，以便遞迴呼叫 `interpolateString`
 
-## 4. 執行管線整合
+## 4. 執行佇列整合與 Exception 捕獲
 
 - [ ] 4.1 在 `backend/src/queue.ts` 的 `executeJob` 函式開頭建立 `RunContext`：`const runContext: RunContext = { snapshots: new Map() }`
-- [ ] 4.2 更新 `queue.ts` 中所有 `interpolateObject` 呼叫（cookies、localStoage），傳入 `runContext`
-- [ ] 4.3 更新 `queue.ts` 中所有 `interpolateString` 呼叫（step action、step expected、testcase expected），傳入 `runContext`
+- [ ] 4.2 更新 `queue.ts` 中所有 `interpolateObject` 與 `interpolateString` 呼叫，將 `runContext` 傳入
+- [ ] 4.3 在 `queue.ts` 執行 Testcase Steps 插值的區塊，將插值呼叫以 Try-Catch 包裹。若捕獲錯誤（例如 JS 語法錯誤或超時），將 TestRun 標記為 `failed`，記錄錯誤日誌並中斷執行 (退出 `executeJob`)
 
-## 5. 前端說明更新（可選）
+## 5. 前端說明提示更新 (可選)
 
-- [ ] 5.1 在 `frontend/src/components/custom/VariablesEditor.tsx` 的 Dialog 說明文字中，新增「可使用內建函式，例如 `{{$random_uuid()}}`、`{{$timestamp()}}`」的提示
+- [ ] 5.1 在 `frontend/src/components/custom/VariablesEditor.tsx` 的 Dialog 說明文字中，新增「支援 JS 表達式，如 `{{crypto.randomUUID()}}`，及快照 `{{$vars.myId ??= crypto.randomUUID()}}`」的提示
 
 ## 6. 驗證
 
-- [ ] 6.1 手動測試：在 Testcase step 中輸入 `{{$random_uuid()}}` 並執行，確認每次 run 產生不同 UUID
-- [ ] 6.2 手動測試：在兩個步驟中使用 `{{$random_uuid("@uid")}}` 並執行，確認同一 run 中兩個步驟取得相同 UUID
-- [ ] 6.3 手動測試：在步驟中輸入 `{{$timestamp()}}` 並執行，確認輸出為 Unix 時間戳（秒）
-- [ ] 6.4 手動測試：在步驟中輸入 `{{$now("YYYY-MM-DD")}}` 並執行，確認輸出為當天日期
-- [ ] 6.5 手動測試：確認現有靜態變數 `{{api_key}}` 等在更新後仍正常運作（向下相容驗證）
-- [ ] 6.6 手動測試：在步驟中輸入 `{{$random_int("1", "100")}}` 並執行多次，確認輸出在 [1, 100] 之間
+- [ ] 6.1 手動測試：在 Testcase step 中輸入 `{{1 + 1}}` 並執行，確認輸出結果為 `2`
+- [ ] 6.2 手動測試：在 Testcase step 中輸入 `{{Date.now()}}` 並執行，確認輸出為毫秒時間戳
+- [ ] 6.3 手動測試：在 Testcase step 中使用 `{{$vars.tempId ??= crypto.randomUUID()}}` 並在下個 step 讀取 `{{$vars.tempId}}`，確認兩步驟取得相同 UUID
+- [ ] 6.4 手動測試：在步驟中輸入 `{{while(true){}}}`，確認步驟在 100ms 後逾時中斷，且 TestRun 狀態變為 `failed`
+- [ ] 6.5 手動測試：確認現有靜態變數 `{{username}}` 等在更新後仍正常運作（向下相容驗證）
