@@ -96,7 +96,6 @@ export default function TestCaseEditBlock({
   const isFormInvalid =
     !tcName.trim() ||
     tcSteps.some((s) => !s.action.trim()) ||
-    !tcExpected.trim() ||
     !isJsonValid;
 
   return (
@@ -196,16 +195,15 @@ export default function TestCaseEditBlock({
       {/* 編輯預期結果 */}
       <div className="flex flex-col gap-1.5">
         <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1">
-          <span>預期結果</span>
+          <span>最終預期結果 (選填，僅作備註說明)</span>
           <span className="text-[9px] text-emerald-500 font-mono normal-case">
             {"(支援 {{變數}} 引用)"}
           </span>
-          <span className="text-red-500">*</span>
         </label>
         <Textarea
           value={tcExpected}
           onChange={(e) => setTcExpected(e.target.value)}
-          placeholder="修改預期結果"
+          placeholder="填寫測試最終預期結果（選填，AI 不會以此進行全局斷言）"
           rows={3}
           className="resize-none bg-zinc-950 border-zinc-800 text-zinc-100"
         />

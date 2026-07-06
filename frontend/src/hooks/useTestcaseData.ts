@@ -27,7 +27,7 @@ export function useTestcaseData(groupId: string | undefined) {
     expected: string
   ) => {
     if (!groupId) return null
-    if (!name.trim() || steps.some(s => !s.action.trim()) || !expected.trim()) {
+    if (!name.trim() || steps.some(s => !s.action.trim())) {
       toast.error("請填寫所有必填欄位，且步驟不可為空！")
       return null
     }

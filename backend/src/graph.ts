@@ -9,15 +9,25 @@ import { AppDataSource } from "./db.js";
 import { TestRun } from "./entities/TestRun.js";
 import { TestLog } from "./entities/TestLog.js";
 import { TestRunStep } from "./entities/TestRunStep.js";
-import { buildExecutorSystemPrompt, buildAsserterSystemPrompt, buildStepAsserterSystemPrompt } from "./graph/prompt.js";
-import { routeAfterExecution, routeNextStep, routeAfterStepAssertion } from "./graph/router.js";
+import {
+  buildExecutorSystemPrompt,
+  buildAsserterSystemPrompt,
+  buildStepAsserterSystemPrompt,
+} from "./graph/prompt.js";
+import {
+  routeAfterExecution,
+  routeNextStep,
+  routeAfterStepAssertion,
+} from "./graph/router.js";
 import { getSettings } from "./services/settingsService.js";
 import { getExecutorModel, getAsserterModel } from "./services/llmFactory.js";
 
 // 定義結構化視覺斷言 Zod Schema
 const AssertionResultSchema = z.object({
-  result: z.enum(["PASS", "FAIL"]).describe("判定結果，必須為 'PASS' 或 'FAIL'"),
-  reason: z.string().describe("詳細的判斷理由與分析說明")
+  result: z
+    .enum(["PASS", "FAIL"])
+    .describe("判定結果，必須為 'PASS' 或 'FAIL'"),
+  reason: z.string().describe("詳細的判斷理由與分析說明"),
 });
 
 type AssertionResult = z.infer<typeof AssertionResultSchema>;
@@ -39,17 +49,26 @@ export class E2EGraphBuilder {
   /**
    * 靜態工廠方法：從 DB 取得 aiConfig 設定後，動態初始化 Executor 與 Asserter 模型。
    */
-  static async create(browserManager: BrowserManager): Promise<E2EGraphBuilder> {
+  static async create(
+    browserManager: BrowserManager,
+  ): Promise<E2EGraphBuilder> {
     const instance = new E2EGraphBuilder(browserManager);
     try {
       const settings = await getSettings();
       const aiConfig = settings.aiConfig;
       instance.model = getExecutorModel(aiConfig, instance.tools);
-      instance.asserter_model = getAsserterModel(aiConfig, AssertionResultSchema);
+      instance.asserter_model = getAsserterModel(
+        aiConfig,
+        AssertionResultSchema,
+      );
     } catch (err) {
-      console.error("[E2EGraphBuilder] 讀取 AI 設定失敗，使用環境變數 fallback：", err);
+      console.error(
+        "[E2EGraphBuilder] 讀取 AI 設定失敗，使用環境變數 fallback：",
+        err,
+      );
       // Fallback：直接使用環境變數的 Gemini 設定
-      const { ChatGoogleGenerativeAI } = await import("@langchain/google-genai");
+      const { ChatGoogleGenerativeAI } =
+        await import("@langchain/google-genai");
       const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
       instance.model = new ChatGoogleGenerativeAI({
         model: "gemini-2.0-flash",
@@ -73,7 +92,7 @@ export class E2EGraphBuilder {
       current_step_idx: 0,
       step_retry_count: 0,
       screenshots_paths: [],
-      logs: []
+      logs: [],
     };
   }
 
@@ -90,7 +109,7 @@ export class E2EGraphBuilder {
     const run = await testRunRepo.findOne({ where: { id: state.run_id } });
     if (run) {
       let stepRunEntity = await testRunStepRepo.findOne({
-        where: { run: { id: run.id }, stepIdx: idx }
+        where: { run: { id: run.id }, stepIdx: idx },
       });
       if (!stepRunEntity) {
         stepRunEntity = new TestRunStep();
@@ -101,20 +120,17 @@ export class E2EGraphBuilder {
         await testRunStepRepo.save(stepRunEntity);
 
         // 廣播 step_status 事件通知前端
-        await testRunStepRepo.query(
-          `SELECT pg_notify('test_run_logs', $1)`,
-          [
-            JSON.stringify({
-              runId: run.id,
-              stepIdx: idx,
-              stepId: stepRunEntity.id,
-              stepDescription: step_content,
-              status: "running",
-              event: "step_status",
-              timestamp: new Date().toISOString()
-            })
-          ]
-        );
+        await testRunStepRepo.query(`SELECT pg_notify('test_run_logs', $1)`, [
+          JSON.stringify({
+            runId: run.id,
+            stepIdx: idx,
+            stepId: stepRunEntity.id,
+            stepDescription: step_content,
+            status: "running",
+            event: "step_status",
+            timestamp: new Date().toISOString(),
+          }),
+        ]);
       }
     }
 
@@ -133,7 +149,9 @@ export class E2EGraphBuilder {
       element_list = "（無法取得元素清單）";
     }
 
-    const current_url = this.browserManager.page ? this.browserManager.page.url() : "";
+    const current_url = this.browserManager.page
+      ? this.browserManager.page.url()
+      : "";
 
     const step_expected = state.step_expecteds[idx] || "";
 
@@ -143,16 +161,20 @@ export class E2EGraphBuilder {
       stepIdx: idx,
       stepContent: step_content,
       stepExpected: step_expected,
-      currentUrl: current_url
+      currentUrl: current_url,
     });
 
     // 2.5 取得當前步驟的歷史執行紀錄（包含工具呼叫與驗證失敗反饋）
-    const stepLogs = (state.logs || []).filter(l => l.step_idx === idx);
+    const stepLogs = (state.logs || []).filter((l) => l.step_idx === idx);
     let historyPrompt = "";
     if (stepLogs.length > 0) {
-      historyPrompt = "\n\n# Execution History for the Current Step (Learn from failures/retries):\n" + stepLogs.map((log, i) => {
-        return `Action ${i + 1}: ${log.action}\nResult/Feedback: ${log.result}`;
-      }).join("\n\n");
+      historyPrompt =
+        "\n\n# Execution History for the Current Step (Learn from failures/retries):\n" +
+        stepLogs
+          .map((log, i) => {
+            return `Action ${i + 1}: ${log.action}\nResult/Feedback: ${log.result}`;
+          })
+          .join("\n\n");
     }
 
     // 3. 呼叫模型（使用帶貼紙的截圖 + 元素清單）
@@ -162,16 +184,15 @@ export class E2EGraphBuilder {
         content: [
           {
             type: "image_url",
-            image_url: { url: `data:image/png;base64,${screenshot_base64}` }
+            image_url: { url: `data:image/png;base64,${screenshot_base64}` },
           },
           {
             type: "text",
-            text: `當前頁面已預先觀察完畢。截圖中的黃色數字標籤即為元素 ID。\n\n${element_list}\n\n請根據截圖中的標籤與元素清單，決定下一步要執行的工具。${historyPrompt}`
-          }
-        ]
-      })
+            text: `當前頁面已預先觀察完畢。截圖中的黃色數字標籤即為元素 ID。\n\n${element_list}\n\n請根據截圖中的標籤與元素清單，決定下一步要執行的工具。${historyPrompt}`,
+          },
+        ],
+      }),
     ];
-
 
     const response = await this.model.invoke(messages);
     const tool_calls = response.tool_calls || [];
@@ -188,17 +209,20 @@ export class E2EGraphBuilder {
         step_description: step_content,
         action: "none",
         result: "AI Agent 未呼召 any 工具，直接回覆文字說明",
-        ai_response: typeof response.content === "string" ? response.content : JSON.stringify(response.content),
+        ai_response:
+          typeof response.content === "string"
+            ? response.content
+            : JSON.stringify(response.content),
         timestamp: new Date().toISOString(),
         prompt_tokens,
         completion_tokens,
-        total_tokens
+        total_tokens,
       });
       return {
         logs,
         step_retry_count: state.step_retry_count + 1,
         last_screenshot: screenshot_base64,
-        simplified_dom: element_list
+        simplified_dom: element_list,
       };
     }
 
@@ -220,11 +244,14 @@ export class E2EGraphBuilder {
           step_idx: idx,
           step_description: step_content,
           action: `${tool_name}(${JSON.stringify(tool_args)})`,
-          result: typeof tool_result === "string" ? tool_result : JSON.stringify(tool_result),
+          result:
+            typeof tool_result === "string"
+              ? tool_result
+              : JSON.stringify(tool_result),
           timestamp: new Date().toISOString(),
           prompt_tokens: pTokens,
           completion_tokens: cTokens,
-          total_tokens: tTokens
+          total_tokens: tTokens,
         });
       } else {
         logs.push({
@@ -235,7 +262,7 @@ export class E2EGraphBuilder {
           timestamp: new Date().toISOString(),
           prompt_tokens: pTokens,
           completion_tokens: cTokens,
-          total_tokens: tTokens
+          total_tokens: tTokens,
         });
       }
     }
@@ -244,7 +271,7 @@ export class E2EGraphBuilder {
       logs,
       step_retry_count: state.step_retry_count + 1,
       last_screenshot: screenshot_base64,
-      simplified_dom: element_list
+      simplified_dom: element_list,
     };
   }
 
@@ -253,9 +280,9 @@ export class E2EGraphBuilder {
    */
   async stepTrackerNode(state: typeof TestState.State) {
     const idx = state.current_step_idx;
-    
+
     // 取得與目前步驟相關的 logs
-    const stepLogs = (state.logs || []).filter(l => l.step_idx === idx);
+    const stepLogs = (state.logs || []).filter((l) => l.step_idx === idx);
 
     let stepPromptTokens = 0;
     let stepCompletionTokens = 0;
@@ -280,12 +307,12 @@ export class E2EGraphBuilder {
     const testRunRepo = AppDataSource.getRepository(TestRun);
     const testRunStepRepo = AppDataSource.getRepository(TestRunStep);
     const testLogRepo = AppDataSource.getRepository(TestLog);
-    
+
     const run = await testRunRepo.findOne({ where: { id: state.run_id } });
     if (run) {
       // 1. 尋找或建立當前步驟實體
       let stepRunEntity = await testRunStepRepo.findOne({
-        where: { run: { id: run.id }, stepIdx: idx }
+        where: { run: { id: run.id }, stepIdx: idx },
       });
       if (!stepRunEntity) {
         stepRunEntity = new TestRunStep();
@@ -306,7 +333,8 @@ export class E2EGraphBuilder {
 
       // 3. 累加這一步的 Token 至 TestRun 最上層的總累計欄位
       run.totalPromptTokens = (run.totalPromptTokens || 0) + stepPromptTokens;
-      run.totalCompletionTokens = (run.totalCompletionTokens || 0) + stepCompletionTokens;
+      run.totalCompletionTokens =
+        (run.totalCompletionTokens || 0) + stepCompletionTokens;
       run.totalTokens = (run.totalTokens || 0) + stepTotalTokens;
       await testRunRepo.save(run);
 
@@ -321,52 +349,46 @@ export class E2EGraphBuilder {
         entity.promptTokens = log.prompt_tokens ?? 0;
         entity.completionTokens = log.completion_tokens ?? 0;
         entity.totalTokens = log.total_tokens ?? 0;
-        
-        await testLogRepo.save(entity);
-        
-        // 每寫入一筆日誌，就調用 NOTIFY 通知監聽者
-        await testLogRepo.query(
-          `SELECT pg_notify('test_run_logs', $1)`,
-          [
-            JSON.stringify({
-              runId: run.id,
-              stepIdx: idx,
-              stepId: stepRunEntity.id,
-              action: log.action,
-              result: log.result,
-              aiResponse: log.ai_response,
-              logId: entity.id,
-              event: "log",
-              timestamp: new Date().toISOString(),
-              promptTokens: entity.promptTokens,
-              completionTokens: entity.completionTokens,
-              totalTokens: entity.totalTokens
-            })
-          ]
-        );
-      }
 
-      // 5. 廣播步驟更新通知 (passed)
-      await testRunStepRepo.query(
-        `SELECT pg_notify('test_run_logs', $1)`,
-        [
+        await testLogRepo.save(entity);
+
+        // 每寫入一筆日誌，就調用 NOTIFY 通知監聽者
+        await testLogRepo.query(`SELECT pg_notify('test_run_logs', $1)`, [
           JSON.stringify({
             runId: run.id,
             stepIdx: idx,
             stepId: stepRunEntity.id,
-            stepDescription: stepRunEntity.stepDescription,
-            status: "passed",
-            event: "step_status",
-            totalTokens: stepRunEntity.totalTokens,
-            timestamp: new Date().toISOString()
-          })
-        ]
-      );
+            action: log.action,
+            result: log.result,
+            aiResponse: log.ai_response,
+            logId: entity.id,
+            event: "log",
+            timestamp: new Date().toISOString(),
+            promptTokens: entity.promptTokens,
+            completionTokens: entity.completionTokens,
+            totalTokens: entity.totalTokens,
+          }),
+        ]);
+      }
+
+      // 5. 廣播步驟更新通知 (passed)
+      await testRunStepRepo.query(`SELECT pg_notify('test_run_logs', $1)`, [
+        JSON.stringify({
+          runId: run.id,
+          stepIdx: idx,
+          stepId: stepRunEntity.id,
+          stepDescription: stepRunEntity.stepDescription,
+          status: "passed",
+          event: "step_status",
+          totalTokens: stepRunEntity.totalTokens,
+          timestamp: new Date().toISOString(),
+        }),
+      ]);
     }
 
     return {
       current_step_idx: idx + 1,
-      step_retry_count: 0
+      step_retry_count: 0,
     };
   }
 
@@ -379,14 +401,16 @@ export class E2EGraphBuilder {
     const step_expected = state.step_expecteds[idx] || "";
 
     // 取得當前網頁畫面截圖
-    const screenshot_base64 = await this.browserManager.getPageScreenshotBase64();
+    const screenshot_base64 =
+      await this.browserManager.getPageScreenshotBase64();
 
     // 最佳化處理：若步驟預期結果指明不需要變化或立即完成，則直接 PASS，不進行 LLM 呼叫以節省資源
     const normalizedExpected = step_expected.toLowerCase();
-    const isInstantFinish = normalizedExpected.includes("no changes") || 
-                            normalizedExpected.includes("finish immediately") || 
-                            normalizedExpected.includes("無變化") || 
-                            normalizedExpected.includes("立即結束");
+    const isInstantFinish =
+      normalizedExpected.includes("no changes") ||
+      normalizedExpected.includes("finish immediately") ||
+      normalizedExpected.includes("無變化") ||
+      normalizedExpected.includes("立即結束");
 
     if (isInstantFinish) {
       const logs = [...(state.logs || [])];
@@ -398,11 +422,11 @@ export class E2EGraphBuilder {
         timestamp: new Date().toISOString(),
         prompt_tokens: 0,
         completion_tokens: 0,
-        total_tokens: 0
+        total_tokens: 0,
       });
       return {
         logs,
-        last_screenshot: screenshot_base64
+        last_screenshot: screenshot_base64,
       };
     }
 
@@ -411,7 +435,7 @@ export class E2EGraphBuilder {
       testName: state.test_name,
       stepIdx: idx,
       stepContent: step_content,
-      stepExpected: step_expected
+      stepExpected: step_expected,
     });
 
     const messages = [
@@ -420,14 +444,14 @@ export class E2EGraphBuilder {
         content: [
           {
             type: "image_url",
-            image_url: { url: `data:image/png;base64,${screenshot_base64}` }
+            image_url: { url: `data:image/png;base64,${screenshot_base64}` },
           },
           {
             type: "text",
-            text: "這是執行完動作後的當前網頁畫面，請依據步驟預期結果進行判定。"
-          }
-        ]
-      })
+            text: "這是執行完動作後的當前網頁畫面，請依據步驟預期結果進行判定。",
+          },
+        ],
+      }),
     ];
 
     let result = "FAIL";
@@ -437,7 +461,9 @@ export class E2EGraphBuilder {
     let total_tokens = 0;
 
     try {
-      const structuredResponse = await this.asserter_model.invoke(messages) as any;
+      const structuredResponse = (await this.asserter_model.invoke(
+        messages,
+      )) as any;
       if (structuredResponse && structuredResponse.parsed) {
         result = structuredResponse.parsed.result;
         reason = structuredResponse.parsed.reason;
@@ -464,67 +490,21 @@ export class E2EGraphBuilder {
       timestamp: new Date().toISOString(),
       prompt_tokens,
       completion_tokens,
-      total_tokens
+      total_tokens,
     });
 
     return {
       logs,
-      last_screenshot: screenshot_base64
+      last_screenshot: screenshot_base64,
     };
   }
 
   /**
-   * 驗證節點：在所有步驟完成後，進行視覺預期結果的最終 Pass/Fail 判定，並持久化至資料庫
+   * 驗證節點：在所有步驟完成後，廢棄視覺預期結果的最終判定，改為自動標記 PASS 並關閉瀏覽器
    */
   async asserterNode(state: typeof TestState.State) {
-    const screenshot_base64 = await this.browserManager.getPageScreenshotBase64();
-
-    const system_prompt = buildAsserterSystemPrompt({
-      testName: state.test_name,
-      expected: state.expected
-    });
-
-    const messages = [
-      new SystemMessage(system_prompt),
-      new HumanMessage({
-        content: [
-          {
-            type: "image_url",
-            image_url: { url: `data:image/png;base64,${screenshot_base64}` }
-          },
-          {
-            type: "text",
-            text: "這是測試流程結束後的當前網頁畫面，請對照預期結果進行審查判定。"
-          }
-        ]
-      })
-    ];
-
-    let final_result = "FAIL";
-    let final_reason = "視覺斷言未返回結果";
-    let asserterPromptTokens = 0;
-    let asserterCompletionTokens = 0;
-    let asserterTotalTokens = 0;
-
-    try {
-      // 呼叫結構化輸出模型
-      const structuredResponse = await this.asserter_model.invoke(messages) as any;
-      if (structuredResponse && structuredResponse.parsed) {
-        final_result = structuredResponse.parsed.result;
-        final_reason = structuredResponse.parsed.reason;
-      }
-      if (structuredResponse && structuredResponse.raw) {
-        const usage = structuredResponse.raw.usage_metadata;
-        if (usage) {
-          asserterPromptTokens = usage.input_tokens ?? 0;
-          asserterCompletionTokens = usage.output_tokens ?? 0;
-          asserterTotalTokens = usage.total_tokens ?? 0;
-        }
-      }
-    } catch (e: any) {
-      final_result = "FAIL";
-      final_reason = `視覺斷言解析發生異常：${e.message}`;
-    }
+    let final_result = "PASS";
+    let final_reason = "所有測試步驟均已成功執行完畢。";
 
     // 關閉瀏覽器，因為測試已結束
     await this.browserManager.closeBrowser();
@@ -533,43 +513,41 @@ export class E2EGraphBuilder {
     const testRunRepo = AppDataSource.getRepository(TestRun);
     const run = await testRunRepo.findOne({ where: { id: state.run_id } });
     if (run) {
-      run.status = final_result === "PASS" ? "passed" : "failed";
+      run.status = "passed";
       run.finalResult = final_result;
       run.finalReason = final_reason;
       run.finishedAt = new Date();
-      run.asserterPromptTokens = asserterPromptTokens;
-      run.asserterCompletionTokens = asserterCompletionTokens;
-      run.asserterTotalTokens = asserterTotalTokens;
-      run.totalPromptTokens = (run.totalPromptTokens || 0) + asserterPromptTokens;
-      run.totalCompletionTokens = (run.totalCompletionTokens || 0) + asserterCompletionTokens;
-      run.totalTokens = (run.totalTokens || 0) + asserterTotalTokens;
+      run.asserterPromptTokens = 0;
+      run.asserterCompletionTokens = 0;
+      run.asserterTotalTokens = 0;
+      // 總 token 維持原有累計值，不另外增加
+      run.totalPromptTokens = run.totalPromptTokens || 0;
+      run.totalCompletionTokens = run.totalCompletionTokens || 0;
+      run.totalTokens = run.totalTokens || 0;
       await testRunRepo.save(run);
 
       // 發送任務結束通知
-      await testRunRepo.query(
-        `SELECT pg_notify('test_run_logs', $1)`,
-        [
-          JSON.stringify({
-            runId: state.run_id,
-            status: run.status,
-            finalResult: final_result,
-            finalReason: final_reason,
-            event: "completed",
-            timestamp: new Date().toISOString(),
-            asserterPromptTokens: run.asserterPromptTokens,
-            asserterCompletionTokens: run.asserterCompletionTokens,
-            asserterTotalTokens: run.asserterTotalTokens,
-            totalPromptTokens: run.totalPromptTokens,
-            totalCompletionTokens: run.totalCompletionTokens,
-            totalTokens: run.totalTokens
-          })
-        ]
-      );
+      await testRunRepo.query(`SELECT pg_notify('test_run_logs', $1)`, [
+        JSON.stringify({
+          runId: state.run_id,
+          status: run.status,
+          finalResult: final_result,
+          finalReason: final_reason,
+          event: "completed",
+          timestamp: new Date().toISOString(),
+          asserterPromptTokens: 0,
+          asserterCompletionTokens: 0,
+          asserterTotalTokens: 0,
+          totalPromptTokens: run.totalPromptTokens,
+          totalCompletionTokens: run.totalCompletionTokens,
+          totalTokens: run.totalTokens,
+        }),
+      ]);
     }
 
     return {
       final_result,
-      final_reason
+      final_reason,
     };
   }
 
@@ -614,7 +592,7 @@ export class E2EGraphBuilder {
       // 1. 如果步驟尚未跑完，說明最後一步失敗了。更新當前步驟為 failed，並補存相關 logs。
       if (currentStepIdx < steps.length) {
         let stepRunEntity = await testRunStepRepo.findOne({
-          where: { run: { id: run.id }, stepIdx: currentStepIdx }
+          where: { run: { id: run.id }, stepIdx: currentStepIdx },
         });
         if (!stepRunEntity) {
           stepRunEntity = new TestRunStep();
@@ -624,7 +602,9 @@ export class E2EGraphBuilder {
         }
 
         // 篩選與當前失敗步驟相關的記憶體 logs
-        let stepLogs = (state.logs || []).filter(l => l.step_idx === currentStepIdx);
+        let stepLogs = (state.logs || []).filter(
+          (l) => l.step_idx === currentStepIdx,
+        );
 
         // 如果完全無日誌則自動補充一筆虛擬日誌
         if (stepLogs.length === 0) {
@@ -636,7 +616,7 @@ export class E2EGraphBuilder {
             timestamp: new Date().toISOString(),
             prompt_tokens: 0,
             completion_tokens: 0,
-            total_tokens: 0
+            total_tokens: 0,
           });
         }
 
@@ -661,7 +641,8 @@ export class E2EGraphBuilder {
 
         // 累加 Token 到 TestRun 總數
         run.totalPromptTokens = (run.totalPromptTokens || 0) + stepPromptTokens;
-        run.totalCompletionTokens = (run.totalCompletionTokens || 0) + stepCompletionTokens;
+        run.totalCompletionTokens =
+          (run.totalCompletionTokens || 0) + stepCompletionTokens;
         run.totalTokens = (run.totalTokens || 0) + stepTotalTokens;
 
         // 寫入當前失敗步驟的所有 TestLog 並與該步驟關聯
@@ -677,47 +658,46 @@ export class E2EGraphBuilder {
           await testLogRepo.save(entity);
 
           // 廣播操作日誌
-          await testLogRepo.query(
-            `SELECT pg_notify('test_run_logs', $1)`,
-            [
-              JSON.stringify({
-                runId: run.id,
-                stepIdx: currentStepIdx,
-                stepId: stepRunEntity.id,
-                action: log.action,
-                result: log.result,
-                aiResponse: log.ai_response,
-                logId: entity.id,
-                event: "log",
-                timestamp: new Date().toISOString(),
-                promptTokens: entity.promptTokens,
-                completionTokens: entity.completionTokens,
-                totalTokens: entity.totalTokens
-              })
-            ]
-          );
-        }
-
-        // 廣播步驟更新通知 (failed)
-        await testRunStepRepo.query(
-          `SELECT pg_notify('test_run_logs', $1)`,
-          [
+          await testLogRepo.query(`SELECT pg_notify('test_run_logs', $1)`, [
             JSON.stringify({
               runId: run.id,
               stepIdx: currentStepIdx,
               stepId: stepRunEntity.id,
-              stepDescription: stepRunEntity.stepDescription,
-              status: "failed",
-              event: "step_status",
-              totalTokens: stepRunEntity.totalTokens,
-              timestamp: new Date().toISOString()
-            })
-          ]
-        );
+              action: log.action,
+              result: log.result,
+              aiResponse: log.ai_response,
+              logId: entity.id,
+              event: "log",
+              timestamp: new Date().toISOString(),
+              promptTokens: entity.promptTokens,
+              completionTokens: entity.completionTokens,
+              totalTokens: entity.totalTokens,
+            }),
+          ]);
+        }
+
+        // 廣播步驟更新通知 (failed)
+        await testRunStepRepo.query(`SELECT pg_notify('test_run_logs', $1)`, [
+          JSON.stringify({
+            runId: run.id,
+            stepIdx: currentStepIdx,
+            stepId: stepRunEntity.id,
+            stepDescription: stepRunEntity.stepDescription,
+            status: "failed",
+            event: "step_status",
+            totalTokens: stepRunEntity.totalTokens,
+            timestamp: new Date().toISOString(),
+          }),
+        ]);
       }
 
       // 2. 更新 TestRun 屬性
-      const statusValue = merged_result === "PASS" ? "passed" : (merged_result === "ERROR" ? "error" : "failed");
+      const statusValue =
+        merged_result === "PASS"
+          ? "passed"
+          : merged_result === "ERROR"
+            ? "error"
+            : "failed";
       run.status = statusValue;
       run.finalResult = merged_result;
       run.finalReason = update_data.final_reason || state.final_reason;
@@ -728,28 +708,23 @@ export class E2EGraphBuilder {
       await testRunRepo.save(run);
 
       // 3. 發送任務結束通知
-      await testRunRepo.query(
-        `SELECT pg_notify('test_run_logs', $1)`,
-        [
-          JSON.stringify({
-            runId: state.run_id,
-            status: run.status,
-            finalResult: merged_result,
-            finalReason: run.finalReason,
-            event: "completed",
-            timestamp: new Date().toISOString(),
-            totalPromptTokens: run.totalPromptTokens,
-            totalCompletionTokens: run.totalCompletionTokens,
-            totalTokens: run.totalTokens
-          })
-        ]
-      );
+      await testRunRepo.query(`SELECT pg_notify('test_run_logs', $1)`, [
+        JSON.stringify({
+          runId: state.run_id,
+          status: run.status,
+          finalResult: merged_result,
+          finalReason: run.finalReason,
+          event: "completed",
+          timestamp: new Date().toISOString(),
+          totalPromptTokens: run.totalPromptTokens,
+          totalCompletionTokens: run.totalCompletionTokens,
+          totalTokens: run.totalTokens,
+        }),
+      ]);
     }
 
     return update_data;
   }
-
-
 
   /**
    * 串接並編譯 LangGraph
@@ -769,37 +744,25 @@ export class E2EGraphBuilder {
       .addEdge("init", "executor")
 
       // 執行後的條件邊
-      .addConditionalEdges(
-        "executor",
-        routeAfterExecution as any,
-        {
-          executor: "executor",
-          step_asserter: "step_asserter",
-          step_tracker: "step_tracker",
-          reporter: "reporter"
-        }
-      )
+      .addConditionalEdges("executor", routeAfterExecution as any, {
+        executor: "executor",
+        step_asserter: "step_asserter",
+        step_tracker: "step_tracker",
+        reporter: "reporter",
+      })
 
       // 步驟驗證後的條件邊
-      .addConditionalEdges(
-        "step_asserter",
-        routeAfterStepAssertion as any,
-        {
-          step_tracker: "step_tracker",
-          executor: "executor",
-          reporter: "reporter"
-        }
-      )
+      .addConditionalEdges("step_asserter", routeAfterStepAssertion as any, {
+        step_tracker: "step_tracker",
+        executor: "executor",
+        reporter: "reporter",
+      })
 
       // 步驟追蹤後的條件邊
-      .addConditionalEdges(
-        "step_tracker",
-        routeNextStep as any,
-        {
-          executor: "executor",
-          asserter: "asserter"
-        }
-      )
+      .addConditionalEdges("step_tracker", routeNextStep as any, {
+        executor: "executor",
+        asserter: "asserter",
+      })
 
       // 最終邊
       .addEdge("asserter", "reporter")

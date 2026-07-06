@@ -43,15 +43,9 @@ export class BrowserTools {
     const observe_web_page = tool(
       async () => {
         try {
-          const { elementList, screenshotBase64 } =
+          const { elementList } =
             await this.browserManager.observeWebPage();
-          return [
-            { type: "text", text: elementList },
-            {
-              type: "image_url",
-              image_url: { url: `data:image/png;base64,${screenshotBase64}` },
-            },
-          ];
+          return elementList;
         } catch (error: any) {
           return `observe_web_page 失敗：${error.message}`;
         }
@@ -59,7 +53,7 @@ export class BrowserTools {
       {
         name: "observe_web_page",
         description:
-          "觀察當前網頁，取得所有可見且可互動的元素清單（含唯一數字 ID）以及帶有 ID 標籤的截圖。在執行任何點擊或輸入操作前，或頁面內容發生變化後，請先呼叫此工具以獲取最新的元素 ID。",
+          "觀察當前網頁，取得所有可見且可互動的元素清單（含唯一數字 ID）。在執行任何點擊或輸入操作前，或頁面內容發生變化後，請先呼叫此工具以獲取最新的元素 ID。",
         schema: z.object({}),
       }
     );
