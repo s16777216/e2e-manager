@@ -118,9 +118,21 @@ export class E2EGraphBuilder {
       }
     }
 
-    // 1. 取得當前畫面截圖 (Base64) 與簡化 DOM 及當前網址
-    const screenshot_base64 = await this.browserManager.getPageScreenshotBase64();
-    const simplified_dom = await this.browserManager.getSimplifiedDOM();
+    // 1. 框架預熱：呼叫 observeWebPage() 注入 ID、渲染貼紙、截圖、清除貼紙
+    //    回傳帶有 ID 標籤的截圖與元素清單，一次傳給 LLM
+    let screenshot_base64: string;
+    let element_list: string;
+
+    try {
+      const observed = await this.browserManager.observeWebPage();
+      screenshot_base64 = observed.screenshotBase64;
+      element_list = observed.elementList;
+    } catch (e: any) {
+      // observeWebPage 失敗時 fallback 到純截圖
+      screenshot_base64 = await this.browserManager.getPageScreenshotBase64();
+      element_list = "（無法取得元素清單）";
+    }
+
     const current_url = this.browserManager.page ? this.browserManager.page.url() : "";
 
     const step_expected = state.step_expecteds[idx] || "";
@@ -143,7 +155,7 @@ export class E2EGraphBuilder {
       }).join("\n\n");
     }
 
-    // 3. 呼叫模型
+    // 3. 呼叫模型（使用帶貼紙的截圖 + 元素清單）
     const messages = [
       new SystemMessage(system_prompt),
       new HumanMessage({
@@ -154,11 +166,12 @@ export class E2EGraphBuilder {
           },
           {
             type: "text",
-            text: `當前瀏覽器網址 (URL) 為：${current_url}\n\n當前網頁簡化後的 DOM 結構如下：\n${simplified_dom}\n\n請根據網址、畫面與 DOM，決定下一步要執行的工具。${historyPrompt}`
+            text: `當前頁面已預先觀察完畢。截圖中的黃色數字標籤即為元素 ID。\n\n${element_list}\n\n請根據截圖中的標籤與元素清單，決定下一步要執行的工具。${historyPrompt}`
           }
         ]
       })
     ];
+
 
     const response = await this.model.invoke(messages);
     const tool_calls = response.tool_calls || [];
@@ -185,7 +198,7 @@ export class E2EGraphBuilder {
         logs,
         step_retry_count: state.step_retry_count + 1,
         last_screenshot: screenshot_base64,
-        simplified_dom
+        simplified_dom: element_list
       };
     }
 
@@ -231,7 +244,7 @@ export class E2EGraphBuilder {
       logs,
       step_retry_count: state.step_retry_count + 1,
       last_screenshot: screenshot_base64,
-      simplified_dom
+      simplified_dom: element_list
     };
   }
 

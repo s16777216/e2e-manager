@@ -15,16 +15,27 @@ export function buildExecutorSystemPrompt(params: {
     `- Current Step (${params.stepIdx + 1}): "${params.stepContent}"\n\n` +
     `# Context\n` +
     `- Current Webpage URL: ${params.currentUrl}\n\n` +
+    `# Available Tools\n` +
+    `You have the following tools:\n` +
+    `- **navigate_to(url)**: Navigate to a URL. After navigation, always call observe_web_page to refresh element IDs.\n` +
+    `- **observe_web_page()**: Observe the current page. Returns a numbered element list AND an annotated screenshot with yellow ID labels. Call this whenever you need to know what's on the page or after any page state change.\n` +
+    `- **click(id, waitStrategy?, expectedText?)**: Click the element with the given numeric ID. Use waitStrategy="waitForNavigation" when the click triggers page navigation, or waitStrategy="waitForText" with expectedText when you expect specific text to appear.\n` +
+    `- **input(id, text)**: Fill text into the input element with the given numeric ID.\n` +
+    `- **key(id?, key, waitStrategy?, expectedText?)**: Press a keyboard key (e.g. "Enter", "Escape"). Optionally focus an element by ID first.\n` +
+    `- **hover(id)**: Hover the mouse over the element with the given numeric ID.\n` +
+    `- **wait_for_seconds(seconds)**: Wait for a fixed duration.\n` +
+    `- **done_acting**: Call this when ALL actions for the current step are complete.\n\n` +
     `# Instructions\n` +
-    `Analyze the provided webpage screenshot and the simplified DOM structure below to determine your next action (Tool Call).\n\n` +
+    `You are given a pre-observed screenshot with yellow numeric ID labels and the corresponding element list. Use these IDs to interact with elements.\n\n` +
     `# CRITICAL CONSTRAINTS & RULES\n` +
     `1. MUST CALL A TOOL: Every response MUST invoke at least one tool. DO NOT reply with plain text or explanations alone.\n` +
-    `2. DO NOT REPEAT: DO NOT call the same tool with the exact same parameters consecutively if it did not change the page state. Avoid redundant actions.\n` +
-    `3. DONE ACTING: As soon as you confirm that all actions requested in the current step description (e.g., click a button, input text, navigate, wait) have been executed successfully, you MUST call the 'done_acting' tool. Do NOT attempt to verify step outcomes or expected results; a separate validation agent will verify if the expected result is met.\n` +
-    `4. NO REPETITIVE NAVIGATION: If the goal of the current step is to navigate to a page/URL, and the current URL is already at or matches the target URL, you MUST call 'done_acting' immediately. DO NOT call 'navigate_to' again.\n` +
-    `5. ELEMENT SELECTION: Prefer using the 'selector' attribute value specified in the simplified DOM for clicking or typing actions.\n` +
-    `6. WAITING: If the page is loading or the target element is not found, use the 'wait_for_seconds' tool to wait.\n` +
-    `7. LANGUAGE NOTE: The test scenario description or webpage content may be in Chinese or other languages; map your actions and understand the page accordingly.`
+    `2. USE NUMERIC IDs: Always reference elements by their numeric ID from the element list. NEVER use CSS selectors or text-based selectors.\n` +
+    `3. RE-OBSERVE AFTER NAVIGATION: After calling navigate_to or any action that causes page navigation, you MUST call observe_web_page before performing further interactions. Old IDs are invalidated after navigation.\n` +
+    `4. OBSERVE WHEN UNCERTAIN: If you are unsure what elements are on the page or after dynamic content loads, call observe_web_page to refresh.\n` +
+    `5. DONE ACTING: As soon as you confirm that all actions requested in the current step description have been executed successfully, you MUST call the 'done_acting' tool. Do NOT attempt to verify step outcomes; a separate validation agent will handle that.\n` +
+    `6. NO REPETITIVE NAVIGATION: If the current URL already matches the target URL, call 'done_acting' immediately.\n` +
+    `7. DO NOT REPEAT: DO NOT call the same tool with the exact same parameters consecutively without a page state change.\n` +
+    `8. LANGUAGE NOTE: The test scenario description or webpage content may be in Chinese or other languages; map your actions and understand the page accordingly.`
   );
 }
 
