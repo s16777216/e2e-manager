@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { buildExecutorSystemPrompt, buildAsserterSystemPrompt, buildStepAsserterSystemPrompt } from "../src/graph/prompt.js";
-import { routeAfterExecution, routeNextStep, routeAfterStepAssertion } from "../src/graph/router.js";
+import { buildExecutorSystemPrompt, buildAsserterSystemPrompt } from "../src/graph/prompt.js";
+import { routeAfterExecution, routeNextStep } from "../src/graph/router.js";
 import { LogEntry } from "../src/state.js";
 
 describe("狀態機 Prompt 拼接與條件路由單元測試", () => {
@@ -17,6 +17,20 @@ describe("狀態機 Prompt 拼接與條件路由單元測試", () => {
       expect(prompt).toContain("Current Step (2)");
       expect(prompt).toContain("點擊同意服務條款");
       expect(prompt).toContain("https://example.com/register");
+      expect(prompt).not.toContain("- Step Expected Outcome:");
+    });
+
+    it("1b. buildExecutorSystemPrompt 應正確渲染步驟預期結果 (若存在)", () => {
+      const prompt = buildExecutorSystemPrompt({
+        testName: "會員註冊功能測試",
+        stepIdx: 1,
+        stepContent: "點擊同意服務條款",
+        stepExpected: "看到同意成功提示",
+        currentUrl: "https://example.com/register"
+      });
+
+      expect(prompt).toContain("Step Expected Outcome: \"看到同意成功提示\"");
+      expect(prompt).toContain("5. DONE ACTING & EXPECTED OUTCOMES");
     });
 
     it("2. buildAsserterSystemPrompt 應正確渲染斷言資訊", () => {
@@ -27,20 +41,6 @@ describe("狀態機 Prompt 拼接與條件路由單元測試", () => {
 
       expect(prompt).toContain("購物車結帳測試");
       expect(prompt).toContain("顯示訂單成立與交易序號");
-    });
-
-    it("2b. buildStepAsserterSystemPrompt 應正確渲染步驟視覺驗證資訊", () => {
-      const prompt = buildStepAsserterSystemPrompt({
-        testName: "會員登入測試",
-        stepIdx: 2,
-        stepContent: "點擊登入按鈕",
-        stepExpected: "看到首頁儀表板"
-      });
-
-      expect(prompt).toContain("會員登入測試");
-      expect(prompt).toContain("Current Step (3)");
-      expect(prompt).toContain("點擊登入按鈕");
-      expect(prompt).toContain("看到首頁儀表板");
     });
   });
 
@@ -73,7 +73,7 @@ describe("狀態機 Prompt 拼接與條件路由單元測試", () => {
       expect(result).toBe("step_tracker");
     });
 
-    it("4b. routeAfterExecution: 有預期結果時呼叫 done_acting 應路由至 step_asserter 進行視覺斷言", () => {
+    it("4b. routeAfterExecution: 有預期結果時呼叫 done_acting 也應路由至 step_tracker", () => {
       const result = routeAfterExecution({
         logs: [
           {
@@ -88,7 +88,7 @@ describe("狀態機 Prompt 拼接與條件路由單元測試", () => {
         current_step_idx: 0,
         step_expecteds: ["顯示儀表板"]
       });
-      expect(result).toBe("step_asserter");
+      expect(result).toBe("step_tracker");
     });
 
     it("5. routeAfterExecution: 單步重試達到 5 次且未呼叫 done_acting 時應路由至 reporter 失敗中斷", () => {
@@ -105,54 +105,6 @@ describe("狀態機 Prompt 拼接與條件路由單元測試", () => {
         step_retry_count: 5,
         current_step_idx: 0,
         step_expecteds: []
-      });
-      expect(result).toBe("reporter");
-    });
-
-    it("5b. routeAfterStepAssertion: 步驟斷言 PASS 時應路由至 step_tracker", () => {
-      const result = routeAfterStepAssertion({
-        logs: [
-          {
-            step_idx: 0,
-            step_description: "點擊登入",
-            action: "step_assertion",
-            result: "PASS",
-            timestamp: new Date().toISOString()
-          }
-        ],
-        step_retry_count: 1
-      });
-      expect(result).toBe("step_tracker");
-    });
-
-    it("5c. routeAfterStepAssertion: 步驟斷言 FAIL 且重試小於 5 時應回傳 executor 重試", () => {
-      const result = routeAfterStepAssertion({
-        logs: [
-          {
-            step_idx: 0,
-            step_description: "點擊登入",
-            action: "step_assertion",
-            result: "FAIL: 未能看見首頁儀表板",
-            timestamp: new Date().toISOString()
-          }
-        ],
-        step_retry_count: 3
-      });
-      expect(result).toBe("executor");
-    });
-
-    it("5d. routeAfterStepAssertion: 步驟斷言 FAIL 且重試達到 5 次時應路由至 reporter 失敗中斷", () => {
-      const result = routeAfterStepAssertion({
-        logs: [
-          {
-            step_idx: 0,
-            step_description: "點擊登入",
-            action: "step_assertion",
-            result: "FAIL: 未能看見首頁儀表板",
-            timestamp: new Date().toISOString()
-          }
-        ],
-        step_retry_count: 5
       });
       expect(result).toBe("reporter");
     });

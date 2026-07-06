@@ -12,8 +12,9 @@ export function buildExecutorSystemPrompt(params: {
     `# Role & Objective\n` +
     `You are a professional Web E2E automation testing AI agent.\n` +
     `- Current Test Case: ${params.testName}\n` +
-    `- Current Step (${params.stepIdx + 1}): "${params.stepContent}"\n\n` +
-    `# Context\n` +
+    `- Current Step (${params.stepIdx + 1}): "${params.stepContent}"\n` +
+    (params.stepExpected ? `- Step Expected Outcome: "${params.stepExpected}"\n` : "") +
+    `\n# Context\n` +
     `- Current Webpage URL: ${params.currentUrl}\n\n` +
     `# Available Tools\n` +
     `You have the following tools:\n` +
@@ -32,37 +33,10 @@ export function buildExecutorSystemPrompt(params: {
     `2. USE NUMERIC IDs: Always reference elements by their numeric ID from the element list. NEVER use CSS selectors or text-based selectors.\n` +
     `3. RE-OBSERVE AFTER NAVIGATION: After calling navigate_to or any action that causes page navigation, you MUST call observe_web_page before performing further interactions. Old IDs are invalidated after navigation.\n` +
     `4. OBSERVE WHEN UNCERTAIN: If you are unsure what elements are on the page or after dynamic content loads, call observe_web_page to refresh.\n` +
-    `5. DONE ACTING: As soon as you confirm that all actions requested in the current step description have been executed successfully, you MUST call the 'done_acting' tool. Do NOT attempt to verify step outcomes; a separate validation agent will handle that.\n` +
+    `5. DONE ACTING & EXPECTED OUTCOMES: Call the 'done_acting' tool when ALL actions for the current step are complete. If the step has a specified expected outcome ('Step Expected Outcome') or causes asynchronous page changes (e.g. toast messages, error text, page loading), you MUST use appropriate waiting strategies in your interaction tools (e.g. click/key with waitStrategy="waitForText" and expectedText) or call the 'wait_for_seconds' tool to ensure the page is in the expected state before calling 'done_acting'.\n` +
     `6. NO REPETITIVE NAVIGATION: If the current URL already matches the target URL, call 'done_acting' immediately.\n` +
     `7. DO NOT REPEAT: DO NOT call the same tool with the exact same parameters consecutively without a page state change.\n` +
     `8. LANGUAGE NOTE: The test scenario description or webpage content may be in Chinese or other languages; map your actions and understand the page accordingly.`
-  );
-}
-
-/**
- * 拼裝 AI Step Asserter 步驟視覺斷言的 System Prompt
- */
-export function buildStepAsserterSystemPrompt(params: {
-  testName: string;
-  stepIdx: number;
-  stepContent: string;
-  stepExpected: string;
-}): string {
-  return (
-    `# Role & Objective\n` +
-    `You are a professional Web E2E test step verification AI auditor.\n\n` +
-    `# Context\n` +
-    `- Test Case Name: ${params.testName}\n` +
-    `- Current Step (${params.stepIdx + 1}): "${params.stepContent}"\n` +
-    `- Step Expected Outcome: "${params.stepExpected}"\n\n` +
-    `# Instructions\n` +
-    `We have just performed actions for this test step. Analyze the current webpage screenshot and determine if the current page state satisfies the "Step Expected Outcome" specified above.\n\n` +
-    `# Rules\n` +
-    `1. Use structured response formats to output your assertion.\n` +
-    `2. Decide the result strictly as either PASS or FAIL.\n` +
-    `3. PASS: The current screenshot and page state satisfy the Step Expected Outcome.\n` +
-    `4. FAIL: The current screenshot and page state do NOT satisfy the Step Expected Outcome.\n` +
-    `5. Provide a detailed, clear explanation for your decision in English. If it fails, explain exactly what is missing or incorrect so the executor agent can retry and fix it.`
   );
 }
 

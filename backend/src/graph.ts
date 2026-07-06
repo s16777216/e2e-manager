@@ -12,12 +12,10 @@ import { TestRunStep } from "./entities/TestRunStep.js";
 import {
   buildExecutorSystemPrompt,
   buildAsserterSystemPrompt,
-  buildStepAsserterSystemPrompt,
 } from "./graph/prompt.js";
 import {
   routeAfterExecution,
   routeNextStep,
-  routeAfterStepAssertion,
 } from "./graph/router.js";
 import { getSettings } from "./services/settingsService.js";
 import { getExecutorModel, getAsserterModel } from "./services/llmFactory.js";
@@ -392,112 +390,7 @@ export class E2EGraphBuilder {
     };
   }
 
-  /**
-   * 步驟驗證節點：對單步執行後的畫面進行視覺預期結果驗證
-   */
-  async stepAsserterNode(state: typeof TestState.State) {
-    const idx = state.current_step_idx;
-    const step_content = state.steps[idx];
-    const step_expected = state.step_expecteds[idx] || "";
 
-    // 取得當前網頁畫面截圖
-    const screenshot_base64 =
-      await this.browserManager.getPageScreenshotBase64();
-
-    // 最佳化處理：若步驟預期結果指明不需要變化或立即完成，則直接 PASS，不進行 LLM 呼叫以節省資源
-    const normalizedExpected = step_expected.toLowerCase();
-    const isInstantFinish =
-      normalizedExpected.includes("no changes") ||
-      normalizedExpected.includes("finish immediately") ||
-      normalizedExpected.includes("無變化") ||
-      normalizedExpected.includes("立即結束");
-
-    if (isInstantFinish) {
-      const logs = [...(state.logs || [])];
-      logs.push({
-        step_idx: idx,
-        step_description: step_content,
-        action: "step_assertion",
-        result: "PASS",
-        timestamp: new Date().toISOString(),
-        prompt_tokens: 0,
-        completion_tokens: 0,
-        total_tokens: 0,
-      });
-      return {
-        logs,
-        last_screenshot: screenshot_base64,
-      };
-    }
-
-    // 建構步驟驗證 System Prompt
-    const system_prompt = buildStepAsserterSystemPrompt({
-      testName: state.test_name,
-      stepIdx: idx,
-      stepContent: step_content,
-      stepExpected: step_expected,
-    });
-
-    const messages = [
-      new SystemMessage(system_prompt),
-      new HumanMessage({
-        content: [
-          {
-            type: "image_url",
-            image_url: { url: `data:image/png;base64,${screenshot_base64}` },
-          },
-          {
-            type: "text",
-            text: "這是執行完動作後的當前網頁畫面，請依據步驟預期結果進行判定。",
-          },
-        ],
-      }),
-    ];
-
-    let result = "FAIL";
-    let reason = "步驟驗證未返回結果";
-    let prompt_tokens = 0;
-    let completion_tokens = 0;
-    let total_tokens = 0;
-
-    try {
-      const structuredResponse = (await this.asserter_model.invoke(
-        messages,
-      )) as any;
-      if (structuredResponse && structuredResponse.parsed) {
-        result = structuredResponse.parsed.result;
-        reason = structuredResponse.parsed.reason;
-      }
-      if (structuredResponse && structuredResponse.raw) {
-        const usage = structuredResponse.raw.usage_metadata;
-        if (usage) {
-          prompt_tokens = usage.input_tokens ?? 0;
-          completion_tokens = usage.output_tokens ?? 0;
-          total_tokens = usage.total_tokens ?? 0;
-        }
-      }
-    } catch (e: any) {
-      result = "FAIL";
-      reason = `步驟驗證解析發生異常：${e.message}`;
-    }
-
-    const logs = [...(state.logs || [])];
-    logs.push({
-      step_idx: idx,
-      step_description: step_content,
-      action: "step_assertion",
-      result: result === "PASS" ? "PASS" : `FAIL: ${reason}`,
-      timestamp: new Date().toISOString(),
-      prompt_tokens,
-      completion_tokens,
-      total_tokens,
-    });
-
-    return {
-      logs,
-      last_screenshot: screenshot_base64,
-    };
-  }
 
   /**
    * 驗證節點：在所有步驟完成後，廢棄視覺預期結果的最終判定，改為自動標記 PASS 並關閉瀏覽器
@@ -734,7 +627,6 @@ export class E2EGraphBuilder {
       // 加入節點
       .addNode("init", this.initNode.bind(this))
       .addNode("executor", this.executorNode.bind(this))
-      .addNode("step_asserter", this.stepAsserterNode.bind(this))
       .addNode("step_tracker", this.stepTrackerNode.bind(this))
       .addNode("asserter", this.asserterNode.bind(this))
       .addNode("reporter", this.reporterNode.bind(this))
@@ -746,15 +638,7 @@ export class E2EGraphBuilder {
       // 執行後的條件邊
       .addConditionalEdges("executor", routeAfterExecution as any, {
         executor: "executor",
-        step_asserter: "step_asserter",
         step_tracker: "step_tracker",
-        reporter: "reporter",
-      })
-
-      // 步驟驗證後的條件邊
-      .addConditionalEdges("step_asserter", routeAfterStepAssertion as any, {
-        step_tracker: "step_tracker",
-        executor: "executor",
         reporter: "reporter",
       })
 
