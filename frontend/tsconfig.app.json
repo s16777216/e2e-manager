@@ -19,7 +19,7 @@
     "paths": {
       "@/*": ["./src/*"],
       "src/*": ["./src/*"],
-      "lucide-react": ["./src/lib/lucide-proxy.tsx"]
+      "lucide-react": ["./src/components/icon/lucide-proxy.tsx"]
     },
 
     /* Linting */

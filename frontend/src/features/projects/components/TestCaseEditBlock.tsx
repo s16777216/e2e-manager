@@ -5,23 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Plus, Trash2, LoaderCircle } from "lucide-react";
-import { JsonEditorAccordion } from "../../../components/custom/JsonEditorAccordion";
-import { VariablesEditor } from "../../../components/custom/VariablesEditor";
-import type { Testcase, VariableItem } from "@/types/api";
+import type { Testcase } from "@/types/api";
 
 interface TestCaseEditBlockProps {
   testcase: Testcase;
   isSaving: boolean;
   onSave: (data: {
-    name: string;
     steps: Array<{ action: string; expected?: string; hasExpected: boolean }>;
     expected: string;
-    initCookies: unknown;
-    initLocalStorage: unknown;
-    variables: Record<string, VariableItem>;
   }) => Promise<void>;
   onCancel: () => void;
-  onDeleteClick: () => void;
 }
 
 export default function TestCaseEditBlock({
@@ -29,9 +22,7 @@ export default function TestCaseEditBlock({
   isSaving,
   onSave,
   onCancel,
-  onDeleteClick,
 }: TestCaseEditBlockProps) {
-  const [tcName, setTcName] = useState(testcase.name);
   const [tcSteps, setTcSteps] = useState<
     Array<{ action: string; expected?: string; hasExpected: boolean }>
   >(
@@ -43,15 +34,7 @@ export default function TestCaseEditBlock({
         }))
       : [{ action: "", expected: "", hasExpected: false }],
   );
-  const [tcExpected, setTcExpected] = useState(testcase.expected);
-  const [initCookies, setInitCookies] = useState<unknown>(testcase.initCookies);
-  const [initLocalStorage, setInitLocalStorage] = useState<unknown>(
-    testcase.initLocalStorage,
-  );
-  const [tcVariables, setTcVariables] = useState<Record<string, VariableItem>>(
-    testcase.variables || {},
-  );
-  const [isJsonValid, setIsJsonValid] = useState(true);
+  const [tcExpected, setTcExpected] = useState(testcase.expected || "");
 
   // 步驟表單增減
   const handleAddStepInput = () => {
@@ -78,42 +61,20 @@ export default function TestCaseEditBlock({
   };
 
   const handleSubmit = async () => {
-    if (!isJsonValid) return;
     await onSave({
-      name: tcName.trim(),
       steps: tcSteps.map((s) => ({
         action: s.action.trim(),
         expected: s.expected?.trim() || "",
         hasExpected: !!s.hasExpected,
       })),
       expected: tcExpected.trim(),
-      initCookies,
-      initLocalStorage,
-      variables: tcVariables,
     });
   };
 
-  const isFormInvalid =
-    !tcName.trim() ||
-    tcSteps.some((s) => !s.action.trim()) ||
-    !isJsonValid;
+  const isFormInvalid = tcSteps.some((s) => !s.action.trim());
 
   return (
     <div className="bg-zinc-900/30 border border-zinc-850 rounded-2xl p-6 flex flex-col gap-5 shadow-lg">
-      {/* 編輯名稱 */}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-          測試案例名稱 <span className="text-red-500">*</span>
-        </label>
-        <Input
-          type="text"
-          value={tcName}
-          onChange={(e) => setTcName(e.target.value)}
-          placeholder="修改測試案例名稱"
-          className="bg-zinc-950 border-zinc-800 text-zinc-100"
-        />
-      </div>
-
       {/* 編輯自然語言步驟 */}
       <div className="flex flex-col gap-1.5">
         <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1">
@@ -207,37 +168,6 @@ export default function TestCaseEditBlock({
           rows={3}
           className="resize-none bg-zinc-950 border-zinc-800 text-zinc-100"
         />
-      </div>
-
-      <JsonEditorAccordion
-        initCookies={testcase.initCookies}
-        initLocalStorage={testcase.initLocalStorage}
-        onChange={({ cookies, localStorage, isValid }) => {
-          setInitCookies(cookies);
-          setInitLocalStorage(localStorage);
-          setIsJsonValid(isValid);
-        }}
-      />
-
-      <VariablesEditor
-        variables={tcVariables}
-        onChange={(newVars) => setTcVariables(newVars)}
-      />
-
-      {/* 刪除測試案例入口 */}
-      <div className="border-t border-zinc-900/60 pt-5 mt-2 flex flex-col gap-2">
-        <label className="text-[10px] font-bold text-rose-500/80 uppercase tracking-wider">
-          危險區域
-        </label>
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={onDeleteClick}
-          className="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 flex items-center gap-1.5 self-start"
-        >
-          <Trash2 size={14} />
-          刪除測試案例
-        </Button>
       </div>
 
       {/* 表單底操作 */}
