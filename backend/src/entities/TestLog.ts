@@ -27,6 +27,6 @@ export class TestLog {
   @ManyToOne(() => TestRunStep, step => step.logs, { onDelete: "CASCADE" })
   step!: Relation<TestRunStep>;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 }

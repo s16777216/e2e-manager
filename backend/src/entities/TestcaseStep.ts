@@ -21,9 +21,9 @@ export class TestcaseStep {
   @ManyToOne(() => Testcase, testcase => testcase.steps, { onDelete: "CASCADE" })
   testcase!: Relation<Testcase>;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: "timestamptz" })
   updatedAt!: Date;
 }

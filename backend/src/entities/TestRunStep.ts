@@ -34,9 +34,9 @@ export class TestRunStep {
   @OneToMany(() => TestLog, log => log.step)
   logs!: TestLog[];
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: "timestamptz" })
   updatedAt!: Date;
 }

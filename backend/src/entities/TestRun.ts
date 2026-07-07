@@ -11,10 +11,10 @@ export class TestRun {
   @Column("varchar", { default: "pending" })
   status!: string; // pending | running | passed | failed | error
 
-  @Column("timestamp", { nullable: true })
+  @Column("timestamptz", { nullable: true })
   startedAt?: Date;
 
-  @Column("timestamp", { nullable: true })
+  @Column("timestamptz", { nullable: true })
   finishedAt?: Date;
 
   @Column("varchar", { nullable: true })
@@ -53,10 +53,10 @@ export class TestRun {
   @ManyToOne(() => Task, task => task.runs, { nullable: true, onDelete: "SET NULL" })
   task!: Relation<Task> | null;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: "timestamptz" })
   updatedAt!: Date;
 }
 

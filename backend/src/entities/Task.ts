@@ -21,10 +21,10 @@ export class Task {
   @Column("int", { default: 0 })
   doneCount!: number;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 
-  @Column("timestamp", { nullable: true })
+  @Column("timestamptz", { nullable: true })
   finishedAt!: Date | null;
 
   @OneToMany(() => TestRun, run => run.task)
