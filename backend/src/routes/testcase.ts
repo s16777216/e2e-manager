@@ -13,19 +13,20 @@ testcaseRouter.get("/groups/:groupId/testcases", async (c) => {
     relations: { runs: true, steps: true },
     order: {
       steps: {
-        stepIdx: "ASC"
+        stepIdx: "ASC",
       },
       runs: {
-        createdAt: "ASC"
-      }
-    }
+        createdAt: "ASC",
+      },
+    },
   });
   return c.json(testcases);
 });
 
 testcaseRouter.post("/groups/:groupId/testcases", async (c) => {
   const groupId = c.req.param("groupId");
-  const { name, steps, expected, initCookies, initLocalStorage, variables } = await c.req.json();
+  const { name, steps, expected, initCookies, initLocalStorage, variables } =
+    await c.req.json();
 
   if (!name) {
     return c.json({ error: "無效的欄位：name 為必填" }, 400);
@@ -52,7 +53,7 @@ testcaseRouter.post("/groups/:groupId/testcases", async (c) => {
     const step = new TestcaseStep();
     step.stepIdx = idx;
     step.action = typeof s === "string" ? s : s.action;
-    step.expected = typeof s === "string" ? undefined : (s.expected || undefined);
+    step.expected = typeof s === "string" ? undefined : s.expected || undefined;
     step.hasExpected = typeof s === "string" ? false : !!s.hasExpected;
     return step;
   });
@@ -68,12 +69,12 @@ testcaseRouter.get("/testcases/:id", async (c) => {
     relations: { runs: true, steps: true },
     order: {
       steps: {
-        stepIdx: "ASC"
+        stepIdx: "ASC",
       },
       runs: {
-        createdAt: "ASC"
-      }
-    }
+        createdAt: "ASC",
+      },
+    },
   });
   if (!testcase) return c.json({ error: "找不到測試案例" }, 404);
   return c.json(testcase);
@@ -81,10 +82,14 @@ testcaseRouter.get("/testcases/:id", async (c) => {
 
 testcaseRouter.patch("/testcases/:id", async (c) => {
   const id = c.req.param("id");
-  const { name, steps, expected, initCookies, initLocalStorage, variables } = await c.req.json();
+  const { name, steps, expected, initCookies, initLocalStorage, variables } =
+    await c.req.json();
 
   const testcaseRepo = AppDataSource.getRepository(Testcase);
-  const testcase = await testcaseRepo.findOne({ where: { id }, relations: { steps: true } });
+  const testcase = await testcaseRepo.findOne({
+    where: { id },
+    relations: { steps: true },
+  });
   if (!testcase) return c.json({ error: "找不到測試案例" }, 404);
 
   if (steps) {
@@ -94,7 +99,9 @@ testcaseRouter.patch("/testcases/:id", async (c) => {
 
     await AppDataSource.transaction(async (transactionalEntityManager) => {
       // 1. 先刪除該案例舊有的 steps 紀錄
-      await transactionalEntityManager.delete(TestcaseStep, { testcase: { id } });
+      await transactionalEntityManager.delete(TestcaseStep, {
+        testcase: { id },
+      });
 
       // 2. 建立新 steps 實體
       const stepsEntities = steps.map((s: any, idx: number) => {
@@ -102,27 +109,28 @@ testcaseRouter.patch("/testcases/:id", async (c) => {
         step.testcase = testcase;
         step.stepIdx = idx;
         step.action = typeof s === "string" ? s : s.action;
-        step.expected = typeof s === "string" ? undefined : (s.expected || undefined);
+        step.expected =
+          typeof s === "string" ? undefined : s.expected || undefined;
         step.hasExpected = typeof s === "string" ? false : !!s.hasExpected;
         return step;
       });
 
       // 3. 更新 testcase 其他欄位並儲存
-      if (name) testcase.name = name;
-      if (expected) testcase.expected = expected;
-      if (initCookies !== undefined) testcase.initCookies = initCookies;
-      if (initLocalStorage !== undefined) testcase.initLocalStorage = initLocalStorage;
-      if (variables !== undefined) testcase.variables = variables;
+      testcase.name = name;
+      testcase.expected = expected;
+      testcase.initCookies = initCookies;
+      testcase.initLocalStorage = initLocalStorage;
+      testcase.variables = variables;
       testcase.steps = stepsEntities;
 
       await transactionalEntityManager.save(testcase);
     });
   } else {
-    if (name) testcase.name = name;
-    if (expected) testcase.expected = expected;
-    if (initCookies !== undefined) testcase.initCookies = initCookies;
-    if (initLocalStorage !== undefined) testcase.initLocalStorage = initLocalStorage;
-    if (variables !== undefined) testcase.variables = variables;
+    testcase.name = name;
+    testcase.expected = expected;
+    testcase.initCookies = initCookies;
+    testcase.initLocalStorage = initLocalStorage;
+    testcase.variables = variables;
     await testcaseRepo.save(testcase);
   }
 
@@ -132,12 +140,12 @@ testcaseRouter.patch("/testcases/:id", async (c) => {
     relations: { runs: true, steps: true },
     order: {
       steps: {
-        stepIdx: "ASC"
+        stepIdx: "ASC",
       },
       runs: {
-        createdAt: "ASC"
-      }
-    }
+        createdAt: "ASC",
+      },
+    },
   });
 
   return c.json(updatedTestcase);
