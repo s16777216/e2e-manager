@@ -45,3 +45,10 @@ TBD - created by archiving change router-layout-redesign. Update Purpose after a
 - **WHEN** 執行測試案例，且該測試案例的步驟中包含 `{{baseUrl}}` 等變數預留位置時
 - **THEN** 後端在執行前，自動在記憶體中將該步驟替換為真實的值，並交付給 Playwright 與 AI Agent 執行
 
+### Requirement: Testcase Last Run Status Display
+系統在專案詳情頁面的測試案例列表中，MUST 顯示該測試案例最後一次執行的狀態。該狀態 MUST 正確反映所有歷史執行（TestRun）中，依據時間（createdAt）排序最新的執行結果。
+
+#### Scenario: Display latest status correctly
+- **WHEN** 測試案例存在多筆歷史執行紀錄且包含不同的狀態
+- **THEN** 專案詳情頁面的列表中，該測試案例的執行狀態欄位 SHALL 顯示時間最新（最晚建立）的那一筆執行的狀態
+

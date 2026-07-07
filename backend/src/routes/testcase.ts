@@ -14,6 +14,9 @@ testcaseRouter.get("/groups/:groupId/testcases", async (c) => {
     order: {
       steps: {
         stepIdx: "ASC"
+      },
+      runs: {
+        createdAt: "ASC"
       }
     }
   });
@@ -66,6 +69,9 @@ testcaseRouter.get("/testcases/:id", async (c) => {
     order: {
       steps: {
         stepIdx: "ASC"
+      },
+      runs: {
+        createdAt: "ASC"
       }
     }
   });
@@ -127,6 +133,9 @@ testcaseRouter.patch("/testcases/:id", async (c) => {
     order: {
       steps: {
         stepIdx: "ASC"
+      },
+      runs: {
+        createdAt: "ASC"
       }
     }
   });
