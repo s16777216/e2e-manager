@@ -25,8 +25,8 @@ export const columns: ColumnDef<Project>[] = [
       />
     ),
     cell: ({ row }) => {
-      const testcaseCount = row.getValue<number>("testcaseCount");
-      return <div className="text-center">{testcaseCount}</div>;
+      const testcaseCount = row.getValue<number | undefined>("testcaseCount");
+      return <div className="text-center">{testcaseCount ?? 0}</div>;
     },
   },
   {

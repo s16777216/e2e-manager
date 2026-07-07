@@ -11,6 +11,7 @@ export interface Project {
   name: string;
   description?: string;
   createdAt: string;
+  testcaseCount?: number;
   groups?: TestGroup[];
   initCookies?: CookiesData | null;
   initLocalStorage?: LocalStorageData | null;

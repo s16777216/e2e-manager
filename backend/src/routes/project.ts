@@ -1,12 +1,34 @@
 import { Hono } from "hono";
 import { AppDataSource } from "../db.js";
 import { Project } from "../entities/Project.js";
+import { Testcase } from "../entities/Testcase.js";
 
 export const projectRouter = new Hono();
 
 projectRouter.get("/", async (c) => {
   const projects = await AppDataSource.getRepository(Project).find();
-  return c.json(projects);
+
+  const counts = await AppDataSource.getRepository(Testcase)
+    .createQueryBuilder("tc")
+    .innerJoin("tc.group", "g")
+    .select("g.projectId", "projectId")
+    .addSelect("COUNT(*)", "count")
+    .groupBy("g.projectId")
+    .getRawMany();
+
+  const countMap = new Map<string, number>();
+  counts.forEach((item) => {
+    if (item.projectId) {
+      countMap.set(item.projectId, parseInt(item.count, 10) || 0);
+    }
+  });
+
+  const projectsWithCount = projects.map((p) => ({
+    ...p,
+    testcaseCount: countMap.get(p.id) || 0,
+  }));
+
+  return c.json(projectsWithCount);
 });
 
 projectRouter.post("/", async (c) => {
