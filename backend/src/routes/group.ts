@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { AppDataSource } from "../db.js";
 import { TestGroup } from "../entities/TestGroup.js";
 import { Project } from "../entities/Project.js";
+import { Testcase } from "../entities/Testcase.js";
 import { findAncestors } from "../services/groupService.js";
 
 export const groupRouter = new Hono();
@@ -16,10 +17,29 @@ groupRouter.get("/projects/:projectId/groups", async (c) => {
     relations: { parent: true },
   });
 
+  // 獲取該專案下所有群組的 testcase 數量
+  const counts = await AppDataSource.getRepository(Testcase)
+    .createQueryBuilder("tc")
+    .select("tc.groupId", "groupId")
+    .addSelect("COUNT(*)", "count")
+    .groupBy("tc.groupId")
+    .getRawMany();
+
+  const countMap = new Map<string, number>();
+  counts.forEach((item) => {
+    if (item.groupId) {
+      countMap.set(item.groupId, parseInt(item.count, 10) || 0);
+    }
+  });
+
   // 轉換成樹狀階層結構
   const groupMap = new Map<string, any>();
   allGroups.forEach((g) => {
-    groupMap.set(g.id, { ...g, children: [] });
+    groupMap.set(g.id, {
+      ...g,
+      testcaseCount: countMap.get(g.id) || 0,
+      children: []
+    });
   });
 
   const roots: any[] = [];

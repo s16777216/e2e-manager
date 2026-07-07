@@ -24,6 +24,7 @@ export interface TestGroup {
   parentId?: string | null;
   children?: TestGroup[];
   testcases?: Testcase[];
+  testcaseCount?: number;
   initCookies?: CookiesData | null;
   initLocalStorage?: LocalStorageData | null;
   variables?: Record<string, VariableItem> | null;

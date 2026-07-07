@@ -264,10 +264,11 @@ export default function ProjectDetailView() {
   // 建立巢狀的 Tree Rows 用於 DataTable 渲染
   const buildNestedTree = (nodes: TestGroup[]): ProjectTreeRow[] => {
     return nodes.map((node) => {
+      const hasLoaded = node.id in testcasesMap;
       const tcs = testcasesMap[node.id] || [];
       const isLoading = loadingMap[node.id] || false;
       const subGroupsCount = node.children?.length || 0;
-      const tcCount = tcs.length;
+      const tcCount = hasLoaded ? tcs.length : (node.testcaseCount || 0);
 
       const childrenList: ProjectTreeRow[] = [];
 
