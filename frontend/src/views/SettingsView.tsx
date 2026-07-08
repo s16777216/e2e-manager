@@ -52,7 +52,8 @@ const aiConfigSchema = z
   })
   .superRefine((val, ctx) => {
     // 1. Google 供應商啟用時，金鑰與模型名稱必填
-    const hasGoogle = val.executorProvider === "google" || val.asserterProvider === "google";
+    const hasGoogle =
+      val.executorProvider === "google" || val.asserterProvider === "google";
     if (hasGoogle && (!val.apiKey || val.apiKey.trim() === "")) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -61,7 +62,10 @@ const aiConfigSchema = z
       });
     }
 
-    if (val.executorProvider === "google" && (!val.geminiModel || val.geminiModel.trim() === "")) {
+    if (
+      val.executorProvider === "google" &&
+      (!val.geminiModel || val.geminiModel.trim() === "")
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "執行器選用 Gemini 時，Gemini Executor 模型名稱為必填",
@@ -69,7 +73,10 @@ const aiConfigSchema = z
       });
     }
 
-    if (val.asserterProvider === "google" && (!val.asserterModel || val.asserterModel.trim() === "")) {
+    if (
+      val.asserterProvider === "google" &&
+      (!val.asserterModel || val.asserterModel.trim() === "")
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "斷言器選用 Gemini 時，Gemini Asserter 模型名稱為必填",
@@ -78,7 +85,8 @@ const aiConfigSchema = z
     }
 
     // 2. OpenAI 供應商啟用時，金鑰、Base URL 與模型名稱必填
-    const hasOpenAi = val.executorProvider === "openai" || val.asserterProvider === "openai";
+    const hasOpenAi =
+      val.executorProvider === "openai" || val.asserterProvider === "openai";
     if (hasOpenAi) {
       if (!val.baseUrl || val.baseUrl.trim() === "") {
         ctx.addIssue({
@@ -96,7 +104,10 @@ const aiConfigSchema = z
       }
     }
 
-    if (val.executorProvider === "openai" && (!val.openaiModel || val.openaiModel.trim() === "")) {
+    if (
+      val.executorProvider === "openai" &&
+      (!val.openaiModel || val.openaiModel.trim() === "")
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "執行器選用 OpenAI 時，OpenAI 執行器模型名稱為必填",
@@ -104,7 +115,10 @@ const aiConfigSchema = z
       });
     }
 
-    if (val.asserterProvider === "openai" && (!val.openaiAsserterModel || val.openaiAsserterModel.trim() === "")) {
+    if (
+      val.asserterProvider === "openai" &&
+      (!val.openaiAsserterModel || val.openaiAsserterModel.trim() === "")
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "斷言器選用 OpenAI 時，OpenAI 斷言器模型名稱為必填",
@@ -116,15 +130,15 @@ const aiConfigSchema = z
 type AiConfigFormData = z.infer<typeof aiConfigSchema>;
 
 const DEFAULT_AI_CONFIG: AiConfigFormData = {
-  executorProvider: "google",
-  asserterProvider: "google",
+  executorProvider: "",
+  asserterProvider: "",
   apiKey: "",
-  geminiModel: "gemini-2.0-flash",
-  asserterModel: "gemini-2.0-flash",
+  geminiModel: "",
+  asserterModel: "",
   openaiApiKey: "",
-  baseUrl: "http://localhost:11434/v1",
-  openaiModel: "gpt-4o",
-  openaiAsserterModel: "gpt-4o",
+  baseUrl: "",
+  openaiModel: "",
+  openaiAsserterModel: "",
 };
 
 export default function SettingsView() {
@@ -327,7 +341,9 @@ export default function SettingsView() {
           <div className="space-y-8">
             {/* 執行器配置區 */}
             <div className="space-y-4">
-              <Typography type="h6" className="text-zinc-300 font-medium">執行器配置 (Executor)</Typography>
+              <Typography type="h6" className="text-zinc-300 font-medium">
+                執行器配置 (Executor)
+              </Typography>
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <FormField
                   name="executorProvider"
@@ -347,7 +363,9 @@ export default function SettingsView() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="google">Google Gemini</SelectItem>
-                        <SelectItem value="openai">OpenAI Compatible</SelectItem>
+                        <SelectItem value="openai">
+                          OpenAI Compatible
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   )}
@@ -377,7 +395,9 @@ export default function SettingsView() {
 
             {/* 斷言器配置區 */}
             <div className="space-y-4">
-              <Typography type="h6" className="text-zinc-300 font-medium">斷言器配置 (Asserter)</Typography>
+              <Typography type="h6" className="text-zinc-300 font-medium">
+                斷言器配置 (Asserter)
+              </Typography>
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <FormField
                   name="asserterProvider"
@@ -397,7 +417,9 @@ export default function SettingsView() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="google">Google Gemini</SelectItem>
-                        <SelectItem value="openai">OpenAI Compatible</SelectItem>
+                        <SelectItem value="openai">
+                          OpenAI Compatible
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   )}
@@ -431,9 +453,12 @@ export default function SettingsView() {
               <>
                 <Separator className="bg-zinc-800" />
                 <div className="space-y-4">
-                  <Typography type="h6" className="text-zinc-300 font-medium">API 連線憑證配置</Typography>
+                  <Typography type="h6" className="text-zinc-300 font-medium">
+                    API 連線憑證配置
+                  </Typography>
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                    {(executorProvider === "google" || asserterProvider === "google") && (
+                    {(executorProvider === "google" ||
+                      asserterProvider === "google") && (
                       <div className="sm:col-span-2">
                         <FormField
                           name="apiKey"
@@ -445,7 +470,8 @@ export default function SettingsView() {
                       </div>
                     )}
 
-                    {(executorProvider === "openai" || asserterProvider === "openai") && (
+                    {(executorProvider === "openai" ||
+                      asserterProvider === "openai") && (
                       <>
                         <div className="sm:col-span-2">
                           <FormField
@@ -463,7 +489,10 @@ export default function SettingsView() {
                             label="OpenAI API 金鑰"
                             description="OpenAI 或相容服務的 API Key（本地 Ollama 可填 ollama）"
                           >
-                            <Input type="password" placeholder="sk-... 或 ollama" />
+                            <Input
+                              type="password"
+                              placeholder="sk-... 或 ollama"
+                            />
                           </FormField>
                         </div>
                       </>

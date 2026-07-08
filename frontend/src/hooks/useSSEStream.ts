@@ -125,6 +125,7 @@ export function useSSEStream(runId: string | undefined) {
               status: payload.status,
               finalResult: payload.finalResult,
               finalReason: payload.finalReason,
+              failureSummary: payload.failureSummary,
               totalPromptTokens: payload.totalPromptTokens,
               totalCompletionTokens: payload.totalCompletionTokens,
               totalTokens: payload.totalTokens,

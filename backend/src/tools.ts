@@ -1,4 +1,4 @@
-import { tool } from "@langchain/core/tools";
+import { DynamicStructuredToolInput, tool } from "@langchain/core/tools";
 import { z } from "zod";
 import { BrowserManager } from "./browser.js";
 
@@ -33,7 +33,7 @@ export class BrowserTools {
         schema: z.object({
           url: z.string().url().describe("要導航的完整目標網址"),
         }),
-      }
+      },
     );
 
     /**
@@ -43,8 +43,7 @@ export class BrowserTools {
     const observe_web_page = tool(
       async () => {
         try {
-          const { elementList } =
-            await this.browserManager.observeWebPage();
+          const { elementList } = await this.browserManager.observeWebPage();
           return elementList;
         } catch (error: any) {
           return `observe_web_page 失敗：${error.message}`;
@@ -55,7 +54,7 @@ export class BrowserTools {
         description:
           "觀察當前網頁，取得所有可見且可互動的元素清單（含唯一數字 ID）。在執行任何點擊或輸入操作前，或頁面內容發生變化後，請先呼叫此工具以獲取最新的元素 ID。",
         schema: z.object({}),
-      }
+      },
     );
 
     /**
@@ -99,7 +98,11 @@ export class BrowserTools {
         description:
           "點擊指定數字 ID 的元素。可選擇附加非同步等待策略：waitForNavigation（等待頁面完成載入）或 waitForText（等待畫面出現指定文字）。",
         schema: z.object({
-          id: z.number().int().positive().describe("目標元素的數字 ID（來自 observe_web_page）"),
+          id: z
+            .number()
+            .int()
+            .positive()
+            .describe("目標元素的數字 ID（來自 observe_web_page）"),
           waitStrategy: z
             .enum(["waitForNavigation", "waitForText"])
             .optional()
@@ -107,9 +110,11 @@ export class BrowserTools {
           expectedText: z
             .string()
             .optional()
-            .describe("當 waitStrategy 為 waitForText 時，指定要等待出現的文字"),
+            .describe(
+              "當 waitStrategy 為 waitForText 時，指定要等待出現的文字",
+            ),
         }),
-      }
+      },
     );
 
     /**
@@ -137,10 +142,14 @@ export class BrowserTools {
         description:
           "在指定數字 ID 的輸入框中填入文字內容（使用 fill，會完整取代原有內容）。",
         schema: z.object({
-          id: z.number().int().positive().describe("目標輸入框的數字 ID（來自 observe_web_page）"),
+          id: z
+            .number()
+            .int()
+            .positive()
+            .describe("目標輸入框的數字 ID（來自 observe_web_page）"),
           text: z.string().describe("要填入的文字內容"),
         }),
-      }
+      },
     );
 
     /**
@@ -193,9 +202,7 @@ export class BrowserTools {
             .positive()
             .optional()
             .describe("選填：按鍵前先 focus 的元素 ID"),
-          key: z
-            .string()
-            .describe("鍵名，例如 \"Enter\"、\"Escape\"、\"Tab\""),
+          key: z.string().describe('鍵名，例如 "Enter"、"Escape"、"Tab"'),
           waitStrategy: z
             .enum(["waitForNavigation", "waitForText"])
             .optional()
@@ -203,9 +210,11 @@ export class BrowserTools {
           expectedText: z
             .string()
             .optional()
-            .describe("當 waitStrategy 為 waitForText 時，指定要等待出現的文字"),
+            .describe(
+              "當 waitStrategy 為 waitForText 時，指定要等待出現的文字",
+            ),
         }),
-      }
+      },
     );
 
     /**
@@ -233,9 +242,13 @@ export class BrowserTools {
         description:
           "將滑鼠游標移動並懸停至指定數字 ID 的元素上，用於觸發 tooltip 或下拉選單等 hover 互動。",
         schema: z.object({
-          id: z.number().int().positive().describe("目標元素的數字 ID（來自 observe_web_page）"),
+          id: z
+            .number()
+            .int()
+            .positive()
+            .describe("目標元素的數字 ID（來自 observe_web_page）"),
         }),
-      }
+      },
     );
 
     const wait_for_seconds = tool(
@@ -256,7 +269,7 @@ export class BrowserTools {
         schema: z.object({
           seconds: z.number().int().min(1).describe("要等待的秒數"),
         }),
-      }
+      },
     );
 
     const done_acting = tool(
@@ -270,7 +283,7 @@ export class BrowserTools {
         schema: z.object({
           message: z.string().describe("動作執行的總結說明"),
         }),
-      }
+      },
     );
 
     return [

@@ -17,23 +17,25 @@ export interface AiConfig {
 
 /** aiConfig 的應用層預設值（provider=google，使用環境變數的 API Key） */
 const DEFAULT_AI_CONFIG: AiConfig = {
-  provider: "google",
-  executorProvider: "google",
-  asserterProvider: "google",
-  apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "",
-  baseUrl: "http://localhost:11434/v1",
+  provider: "",
+  executorProvider: "",
+  asserterProvider: "",
+  apiKey: "",
+  baseUrl: "",
   openaiApiKey: "",
-  geminiModel: "gemini-2.0-flash",
-  asserterModel: "gemini-2.0-flash",
-  openaiModel: "gpt-4o",
-  openaiAsserterModel: "gpt-4o",
+  geminiModel: "",
+  asserterModel: "",
+  openaiModel: "",
+  openaiAsserterModel: "",
 };
 
 /**
  * 取得全域系統設定。若無設定則會自動寫入並回傳預設值。
  * aiConfig 為 null 時，在應用層補填預設值（不回寫 DB）。
  */
-export async function getSettings(): Promise<SystemSetting & { aiConfig: AiConfig }> {
+export async function getSettings(): Promise<
+  SystemSetting & { aiConfig: AiConfig }
+> {
   const settingRepo = AppDataSource.getRepository(SystemSetting);
   let setting = await settingRepo.findOne({ where: { id: "default" } });
 
@@ -58,7 +60,9 @@ export async function getSettings(): Promise<SystemSetting & { aiConfig: AiConfi
 /**
  * 儲存/更新全域系統設定。
  */
-export async function saveSettings(settings: Partial<SystemSetting>): Promise<SystemSetting> {
+export async function saveSettings(
+  settings: Partial<SystemSetting>,
+): Promise<SystemSetting> {
   const settingRepo = AppDataSource.getRepository(SystemSetting);
   const current = await getSettings();
 

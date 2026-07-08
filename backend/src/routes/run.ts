@@ -268,6 +268,7 @@ runRouter.get("/runs/:runId", async (c) => {
     finishedAt: run.finishedAt,
     finalResult: run.finalResult,
     finalReason: run.finalReason,
+    failureSummary: run.failureSummary,
     screenshotFailUrl: run.screenshotFailData
       ? `/api/runs/${run.id}/screenshots/fail`
       : null,

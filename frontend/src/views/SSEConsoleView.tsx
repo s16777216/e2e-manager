@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams, useRouteLoaderData } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSSEStream } from "../hooks/useSSEStream";
-import type { Testcase, Project } from "../types/api";
+import type { Testcase } from "../types/api";
 import { api } from "../lib/api";
 import { StepAccordion } from "../components/custom/StepAccordion";
+import { AIFailureSummaryPanel } from "../components/custom/AIFailureSummaryPanel";
 import { cn } from "../lib/utils";
 
 export default function SSEConsoleView() {
-  const { projectId, runId } = useParams();
+  const { runId } = useParams();
 
   // SSE 狀態連線
   const { runStatus } = useSSEStream(runId);
@@ -36,8 +37,6 @@ export default function SSEConsoleView() {
     };
   }, [runStatus?.testcaseId]);
 
-  const foundProject = useRouteLoaderData("project-root") as Project | null;
-
   // 滾動至最新步驟
   useEffect(() => {
     if (timelineEndRef.current) {
@@ -51,64 +50,76 @@ export default function SSEConsoleView() {
       <ScrollArea className="flex-1 bg-zinc-950/40">
         <div className="flex flex-col w-full space-y-6">
           {/* 視覺斷言報告 (當有最終結果時，顯示在上方) */}
-          {runStatus && ["passed", "failed", "error"].includes(runStatus.status) && (
-            <div className="flex-shrink-0 animate-fadeIn mx-auto w-full">
-              <div
-                className={cn(
-                  "border rounded-xl p-5 flex flex-col gap-3.5 shadow-md",
-                  runStatus.status === "passed"
-                    ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-400"
-                    : runStatus.status === "error"
-                    ? "bg-amber-950/20 border-amber-500/30 text-amber-400"
-                    : "bg-rose-950/20 border-rose-500/30 text-rose-400",
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  {runStatus.status === "passed" ? (
-                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                  ) : (
-                    <XCircle className="w-5 h-5 text-rose-500" />
+          {runStatus &&
+            ["passed", "failed", "error"].includes(runStatus.status) && (
+              <div className="flex-shrink-0 animate-fadeIn mx-auto w-full">
+                <div
+                  className={cn(
+                    "border rounded-xl p-5 flex flex-col gap-3.5 shadow-md",
+                    runStatus.status === "passed"
+                      ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-400"
+                      : runStatus.status === "error"
+                        ? "bg-amber-950/20 border-amber-500/30 text-amber-400"
+                        : "bg-rose-950/20 border-rose-500/30 text-rose-400",
                   )}
-                  <h4 className="text-sm font-bold">
-                    結果 ({runStatus.finalResult || runStatus.status.toUpperCase()})
-                  </h4>
-                </div>
-                <p className="text-xs leading-relaxed whitespace-pre-wrap">
-                  {runStatus.finalReason || (runStatus.status === "error" ? "測試執行發生嚴重異常" : "測試未通過")}
-                </p>
-                {runStatus.totalTokens !== undefined &&
-                  runStatus.totalTokens > 0 && (
-                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-3 border-t border-zinc-800/40 text-[10px] text-zinc-400 font-mono">
-                      {runStatus.asserterTotalTokens !== undefined &&
-                        runStatus.asserterTotalTokens > 0 && (
-                          <div>
-                            <span>視覺斷言: </span>
-                            <span className="text-zinc-300 font-semibold">
-                              {runStatus.asserterTotalTokens}
-                            </span>
-                            <span className="text-zinc-500">
-                              {" "}
-                              (輸入:{runStatus.asserterPromptTokens} / 輸出:
-                              {runStatus.asserterCompletionTokens})
-                            </span>
-                          </div>
-                        )}
-                      <div>
-                        <span>總計消耗: </span>
-                        <span className="text-indigo-400 font-bold">
-                          {runStatus.totalTokens}
-                        </span>
-                        <span className="text-zinc-500">
-                          {" "}
-                          (輸入:{runStatus.totalPromptTokens} / 輸出:
-                          {runStatus.totalCompletionTokens})
-                        </span>
+                >
+                  <div className="flex items-center gap-2">
+                    {runStatus.status === "passed" ? (
+                      <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                    ) : (
+                      <XCircle className="w-5 h-5 text-rose-500" />
+                    )}
+                    <h4 className="text-sm font-bold">
+                      結果 (
+                      {runStatus.finalResult || runStatus.status.toUpperCase()})
+                    </h4>
+                  </div>
+                  <p className="text-xs leading-relaxed whitespace-pre-wrap">
+                    {runStatus.finalReason ||
+                      (runStatus.status === "error"
+                        ? "測試執行發生嚴重異常"
+                        : "測試未通過")}
+                  </p>
+                  {/* 新增：AI 失敗總結面板 */}
+                  {["failed", "error"].includes(runStatus.status) &&
+                    runStatus.failureSummary && (
+                      <AIFailureSummaryPanel
+                        summary={runStatus.failureSummary}
+                      />
+                    )}
+                  {runStatus.totalTokens !== undefined &&
+                    runStatus.totalTokens > 0 && (
+                      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-3 border-t border-zinc-800/40 text-[10px] text-zinc-400 font-mono">
+                        {runStatus.asserterTotalTokens !== undefined &&
+                          runStatus.asserterTotalTokens > 0 && (
+                            <div>
+                              <span>視覺斷言: </span>
+                              <span className="text-zinc-300 font-semibold">
+                                {runStatus.asserterTotalTokens}
+                              </span>
+                              <span className="text-zinc-500">
+                                {" "}
+                                (輸入:{runStatus.asserterPromptTokens} / 輸出:
+                                {runStatus.asserterCompletionTokens})
+                              </span>
+                            </div>
+                          )}
+                        <div>
+                          <span>總計消耗: </span>
+                          <span className="text-indigo-400 font-bold">
+                            {runStatus.totalTokens}
+                          </span>
+                          <span className="text-zinc-500">
+                            {" "}
+                            (輸入:{runStatus.totalPromptTokens} / 輸出:
+                            {runStatus.totalCompletionTokens})
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
           <div className="w-full mx-auto space-y-6">
             {!(runStatus?.steps && runStatus.steps.length > 0) &&
             !(runStatus?.testcaseSteps && runStatus.testcaseSteps.length > 0) &&

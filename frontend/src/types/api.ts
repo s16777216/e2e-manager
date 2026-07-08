@@ -70,6 +70,7 @@ export interface TestRun {
   totalPromptTokens?: number;
   totalCompletionTokens?: number;
   totalTokens?: number;
+  failureSummary?: string;
 }
 
 export interface TestRunStep {

@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { StateGraph, START, END } from "@langchain/langgraph";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import {
+  BaseMessage,
+  HumanMessage,
+  SystemMessage,
+} from "@langchain/core/messages";
 
 import { TestState } from "./state.js";
 import { BrowserManager } from "./browser.js";
@@ -11,14 +15,13 @@ import { TestLog } from "./entities/TestLog.js";
 import { TestRunStep } from "./entities/TestRunStep.js";
 import {
   buildExecutorSystemPrompt,
-  buildAsserterSystemPrompt,
+  buildFailureSummarizerSystemPrompt,
 } from "./graph/prompt.js";
-import {
-  routeAfterExecution,
-  routeNextStep,
-} from "./graph/router.js";
+import { routeAfterExecution, routeNextStep } from "./graph/router.js";
 import { getSettings } from "./services/settingsService.js";
-import { getExecutorModel, getAsserterModel } from "./services/llmFactory.js";
+import { getExecutorModel, getSummarizerModel } from "./services/llmFactory.js";
+import { Runnable } from "@langchain/core/runnables";
+import { ClientTool, DynamicStructuredToolInput } from "@langchain/core/tools";
 
 // 定義結構化視覺斷言 Zod Schema
 const AssertionResultSchema = z.object({
@@ -28,13 +31,27 @@ const AssertionResultSchema = z.object({
   reason: z.string().describe("詳細的判斷理由與分析說明"),
 });
 
-type AssertionResult = z.infer<typeof AssertionResultSchema>;
+function parseContentToString(content: any): string {
+  if (typeof content === "string") {
+    return content;
+  }
+  if (Array.isArray(content)) {
+    return content
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (item && typeof item === "object" && "text" in item) return item.text;
+        return "";
+      })
+      .join("");
+  }
+  return "";
+}
 
 export class E2EGraphBuilder {
   private browserManager: BrowserManager;
-  private tools: any[];
-  private model: any;
-  private asserter_model: any;
+  private tools: ClientTool[];
+  private model!: Runnable;
+  private summarizer_model!: Runnable;
 
   /**
    * 使用靜態 create() 工廠方法取得實例，以便在建構子外進行非同步設定載入。
@@ -55,31 +72,15 @@ export class E2EGraphBuilder {
       const settings = await getSettings();
       const aiConfig = settings.aiConfig;
       instance.model = getExecutorModel(aiConfig, instance.tools);
-      instance.asserter_model = getAsserterModel(
-        aiConfig,
-        AssertionResultSchema,
-      );
+      instance.summarizer_model = getSummarizerModel(aiConfig);
+      return instance;
     } catch (err) {
       console.error(
         "[E2EGraphBuilder] 讀取 AI 設定失敗，使用環境變數 fallback：",
         err,
       );
-      // Fallback：直接使用環境變數的 Gemini 設定
-      const { ChatGoogleGenerativeAI } =
-        await import("@langchain/google-genai");
-      const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-      instance.model = new ChatGoogleGenerativeAI({
-        model: "gemini-2.0-flash",
-        temperature: 0.0,
-        apiKey,
-      }).bindTools(instance.tools);
-      instance.asserter_model = new ChatGoogleGenerativeAI({
-        model: "gemini-2.0-flash",
-        temperature: 0.0,
-        apiKey,
-      }).withStructuredOutput(AssertionResultSchema, { includeRaw: true });
+      throw err;
     }
-    return instance;
   }
 
   /**
@@ -193,6 +194,8 @@ export class E2EGraphBuilder {
     ];
 
     const response = await this.model.invoke(messages);
+    console.log("executorNode response", response);
+
     const tool_calls = response.tool_calls || [];
     const logs = [...(state.logs || [])];
 
@@ -207,10 +210,7 @@ export class E2EGraphBuilder {
         step_description: step_content,
         action: "none",
         result: "AI Agent 未呼召 any 工具，直接回覆文字說明",
-        ai_response:
-          typeof response.content === "string"
-            ? response.content
-            : JSON.stringify(response.content),
+        ai_response: parseContentToString(response.content),
         timestamp: new Date().toISOString(),
         prompt_tokens,
         completion_tokens,
@@ -390,8 +390,6 @@ export class E2EGraphBuilder {
     };
   }
 
-
-
   /**
    * 驗證節點：在所有步驟完成後，廢棄視覺預期結果的最終判定，改為自動標記 PASS 並關閉瀏覽器
    */
@@ -480,9 +478,51 @@ export class E2EGraphBuilder {
     const testRunStepRepo = AppDataSource.getRepository(TestRunStep);
     const testLogRepo = AppDataSource.getRepository(TestLog);
 
-    const run = await testRunRepo.findOne({ where: { id: state.run_id } });
+    const run = await testRunRepo.findOne({
+      where: { id: state.run_id },
+      relations: { testcase: true },
+    });
     if (run) {
-      // 1. 如果步驟尚未跑完，說明最後一步失敗了。更新當前步驟為 failed，並補存相關 logs。
+      // 1. 如果測試失敗，嘗試生成 AI 總結
+      if (["FAIL", "ERROR"].includes(merged_result)) {
+        try {
+          const system_prompt = buildFailureSummarizerSystemPrompt({
+            testName: state.test_name,
+            expected: run.testcase?.expected || "未知",
+            logs: state.logs || [],
+          });
+
+          const messages: BaseMessage[] = [new SystemMessage(system_prompt)];
+          if (screenshotFailBuffer) {
+            messages.push(
+              new HumanMessage({
+                content: [
+                  {
+                    type: "text",
+                    text: "這是測試失敗時的截圖：",
+                  },
+                  {
+                    type: "image_url",
+                    image_url: {
+                      url: `data:image/png;base64,${screenshotFailBuffer.toString("base64")}`,
+                    },
+                  },
+                ],
+              }),
+            );
+          } else {
+            messages.push(new HumanMessage("無法提供失敗截圖。"));
+          }
+
+          const response = await this.summarizer_model.invoke(messages);
+          run.failureSummary = parseContentToString(response.content);
+        } catch (e: any) {
+          console.error(`[E2E Manager] AI 失敗總結失敗: ${e.message}`);
+          throw e;
+        }
+      }
+
+      // 1. (舊邏輯) 如果步驟尚未跑完，說明最後一步失敗了。更新當前步驟為 failed，並補存相關 logs。
       if (currentStepIdx < steps.length) {
         let stepRunEntity = await testRunStepRepo.findOne({
           where: { run: { id: run.id }, stepIdx: currentStepIdx },
@@ -600,13 +640,14 @@ export class E2EGraphBuilder {
       }
       await testRunRepo.save(run);
 
-      // 3. 發送任務結束通知
+      // 3. 發送任務結束通知 (包含 failureSummary)
       await testRunRepo.query(`SELECT pg_notify('test_run_logs', $1)`, [
         JSON.stringify({
           runId: state.run_id,
           status: run.status,
           finalResult: merged_result,
           finalReason: run.finalReason,
+          failureSummary: run.failureSummary,
           event: "completed",
           timestamp: new Date().toISOString(),
           totalPromptTokens: run.totalPromptTokens,

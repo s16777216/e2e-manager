@@ -39,6 +39,14 @@ export class TestReporter {
     md.push(`### 📢 判定理由`);
     md.push(`> ${state.final_reason}`);
     md.push(``);
+
+    // 新增：AI 失敗總結
+    if (["FAIL", "ERROR"].includes(state.final_result) && state.failureSummary) {
+      md.push(`### 🤖 AI 失敗分析與建議`);
+      md.push(``);
+      md.push(`${state.failureSummary}`);
+      md.push(``);
+    }
     
     // 檢查是否有最終失敗畫面截圖
     const failScreenshotPath = path.join(reportsDir, "screenshot_fail.png");

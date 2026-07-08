@@ -33,7 +33,9 @@ export function buildExecutorSystemPrompt(params: {
     `2. USE NUMERIC IDs: Always reference elements by their numeric ID from the element list. NEVER use CSS selectors or text-based selectors.\n` +
     `3. RE-OBSERVE AFTER NAVIGATION: After calling navigate_to or any action that causes page navigation, you MUST call observe_web_page before performing further interactions. Old IDs are invalidated after navigation.\n` +
     `4. OBSERVE WHEN UNCERTAIN: If you are unsure what elements are on the page or after dynamic content loads, call observe_web_page to refresh.\n` +
-    `5. DONE ACTING & EXPECTED OUTCOMES: Call the 'done_acting' tool when ALL actions for the current step are complete. If the step has a specified expected outcome ('Step Expected Outcome') or causes asynchronous page changes (e.g. toast messages, error text, page loading), you MUST use appropriate waiting strategies in your interaction tools (e.g. click/key with waitStrategy="waitForText" and expectedText) or call the 'wait_for_seconds' tool to ensure the page is in the expected state before calling 'done_acting'.\n` +
+    `5. DONE ACTING & EXPECTED OUTCOMES:\n` +
+    `   - If the step HAS a specified 'Step Expected Outcome': You MUST verify that the page state satisfies this outcome (using appropriate waitStrategy or wait_for_seconds) before calling 'done_acting'.\n` +
+    `   - If the step HAS NO 'Step Expected Outcome': Once your action tool (e.g. navigate_to, click, input) executes successfully, you MUST call 'done_acting' immediately to complete the current step. DO NOT attempt to perform any further actions or anticipate subsequent steps.\n` +
     `6. NO REPETITIVE NAVIGATION: If the current URL already matches the target URL, call 'done_acting' immediately.\n` +
     `7. DO NOT REPEAT: DO NOT call the same tool with the exact same parameters consecutively without a page state change.\n` +
     `8. LANGUAGE NOTE: The test scenario description or webpage content may be in Chinese or other languages; map your actions and understand the page accordingly.`
@@ -63,6 +65,33 @@ export function buildAsserterSystemPrompt(params: {
     `3. PASS: The final screenshot and page state fully satisfy the Expected Result description.\n` +
     `4. FAIL: The final screenshot and page state do NOT satisfy the Expected Result description, or there are clear errors/mismatches.\n` +
     `5. Provide a detailed, clear explanation for your decision in English.`
+  );
+}
+
+/**
+ * 產出失敗總結的系統提示詞
+ */
+export function buildFailureSummarizerSystemPrompt(params: {
+  testName: string;
+  expected: string;
+  logs: any[];
+}): string {
+  return (
+    `# Role & Objective\n` +
+    `You are an expert E2E testing analyst. Your goal is to analyze test failure logs and screenshots to provide a concise, actionable summary in Traditional Chinese.\n\n` +
+    `# Context\n` +
+    `- Test Case Name: ${params.testName}\n` +
+    `- Expected Result: ${params.expected}\n` +
+    `- Execution Logs: ${JSON.stringify(params.logs)}\n\n` +
+    `# Task\n` +
+    `Analyze the execution logs and the provided screenshot (if available) to identify why the test failed.\n\n` +
+    `# Output Format (Traditional Chinese Markdown)\n` +
+    `1. ❌ **失敗步驟**：[請指出發生錯誤的具體步驟編號或內容]\n` +
+    `2. 🔍 **根本原因分析**：[請精簡描述失敗的核心原因，例如 DOM 元素未出現、斷言失敗等]\n` +
+    `3. 💡 **修復建議**：[請提供具體的調整建議，例如檢查 Selector、增加等待時間或修改斷言邏輯]\n\n` +
+    `# Constraints\n` +
+    `- Keep it professional, clear, and very concise (total under 200 words).\n` +
+    `- Do not use markdown code blocks for the output content itself.`
   );
 }
 
