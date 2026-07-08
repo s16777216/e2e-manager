@@ -9,11 +9,11 @@ import { api } from "@/lib/api";
 import type { Testcase, TestRun, Project, VariableItem } from "@/types/api";
 import {
   Play,
-  Edit,
   LoaderCircle,
   Settings,
   Clock,
   GitCommitVertical,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/custom/StatusBadge";
@@ -22,15 +22,17 @@ import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/custom/table/DataTable";
 import { DataTableColumnHeader } from "@/components/custom/table/ColumnHeader";
-import TestCaseEditBlock from "../components/TestCaseEditBlock";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
+
+// 引入行內步驟 Item 元件
+import TestCaseStepItem from "../components/TestCaseStepItem";
 
 // 新增設定 Blocks 元件
 import TestCaseFormGeneralBlock from "../components/TestCaseFormGeneralBlock";
 import TestCaseFormStorageBlock from "../components/TestCaseFormStorageBlock";
 import TestCaseFormVariableBlock from "../components/TestCaseFormVariableBlock";
 import TestCaseFormDangerBlock from "../components/TestCaseFormDangerBlock";
-import { Separator } from "@/components/ui/separator";
 
 export default function TestCaseDetailView() {
   const { projectId, testCaseId } = useParams();
@@ -46,10 +48,6 @@ export default function TestCaseDetailView() {
   );
   const [isLoading, setIsLoading] = useState(!loaderData?.testcase);
 
-  // 步驟編輯模式與儲存狀態
-  const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-
   // 設定 Block 個別儲存狀態
   const [isSavingGeneral, setIsSavingGeneral] = useState(false);
   const [isSavingStorage, setIsSavingStorage] = useState(false);
@@ -57,6 +55,9 @@ export default function TestCaseDetailView() {
 
   // 執行測試狀態
   const [isTriggering, setIsTriggering] = useState(false);
+
+  // 行內步驟編輯的 index
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   // 當前 Active Tab: "steps" | "history" | "setting"
   const [activeTab, setActiveTab] = useState<"steps" | "history" | "setting">(
@@ -67,7 +68,7 @@ export default function TestCaseDetailView() {
   const [prevTestCaseId, setPrevTestCaseId] = useState(testCaseId);
   if (testCaseId !== prevTestCaseId) {
     setPrevTestCaseId(testCaseId);
-    setIsEditing(false);
+    setEditingIndex(null);
     setActiveTab("steps");
     setIsLoading(!loaderData?.testcase);
     setTestcase(loaderData?.testcase ?? null);
@@ -87,27 +88,110 @@ export default function TestCaseDetailView() {
     }
   }, [testCaseId, setTestcase]);
 
-  // 儲存步驟修改 (僅限 steps 與 expected)
-  const handleSaveEdit = async (data: {
-    steps: Array<{ action: string; expected?: string; hasExpected: boolean }>;
-    expected: string;
-  }) => {
+  // 新增步驟 (僅在前端暫存追加，不呼叫 API)
+  const handleAddStep = () => {
+    if (!testcase) return;
+    if (editingIndex !== null) {
+      toast.warning("請先完成或取消當前正在編輯的步驟！");
+      return;
+    }
+    const newSteps = testcase.steps ? [...testcase.steps] : [];
+    newSteps.push({
+      id: "",
+      stepIdx: newSteps.length,
+      action: "",
+      expected: "",
+      hasExpected: false,
+    });
+
+    setTestcase({
+      ...testcase,
+      steps: newSteps,
+    });
+    setEditingIndex(newSteps.length - 1);
+  };
+
+  // 儲存單個步驟變更 (含修改與新增儲存)
+  const handleSaveStep = async (
+    index: number,
+    updatedStep: { action: string; expected?: string; hasExpected: boolean },
+  ) => {
     if (!testCaseId || !testcase) return;
-    setIsSaving(true);
+    const newSteps = [...testcase.steps];
+    newSteps[index] = {
+      ...newSteps[index],
+      ...updatedStep,
+    };
     try {
       await api.updateTestcase(testCaseId, {
         ...testcase,
-        steps: data.steps,
-        expected: data.expected,
+        steps: newSteps,
       });
-      toast.success("測試步驟修改成功！");
-      setIsEditing(false);
+      toast.success("步驟已儲存！");
+      setEditingIndex(null);
       await loadTestCaseData();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      toast.error("修改測試步驟失敗：" + msg);
-    } finally {
-      setIsSaving(false);
+      toast.error("儲存步驟失敗：" + msg);
+    }
+  };
+
+  // 取消單個步驟編輯
+  const handleCancelStep = (index: number) => {
+    if (!testcase) return;
+    const step = testcase.steps[index];
+    // 如果是未存檔的新增空白步驟，直接移除
+    const isNewUnsavedStep =
+      step.action === "" && index === testcase.steps.length - 1;
+    if (isNewUnsavedStep) {
+      const newSteps = [...testcase.steps];
+      newSteps.splice(index, 1);
+      setTestcase({
+        ...testcase,
+        steps: newSteps,
+      });
+    }
+    setEditingIndex(null);
+  };
+
+  // 刪除步驟
+  const handleDeleteStep = async (index: number) => {
+    if (!testCaseId || !testcase) return;
+    const newSteps = [...testcase.steps];
+    newSteps.splice(index, 1);
+    try {
+      await api.updateTestcase(testCaseId, {
+        ...testcase,
+        steps: newSteps,
+      });
+      toast.success("步驟已刪除！");
+      await loadTestCaseData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error("刪除步驟失敗：" + msg);
+    }
+  };
+
+  // 調整步驟順序 (上移/下移)
+  const handleMoveStep = async (index: number, direction: "up" | "down") => {
+    if (!testCaseId || !testcase) return;
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= testcase.steps.length) return;
+
+    const newSteps = [...testcase.steps];
+    const temp = newSteps[index];
+    newSteps[index] = newSteps[targetIndex];
+    newSteps[targetIndex] = temp;
+
+    try {
+      await api.updateTestcase(testCaseId, {
+        ...testcase,
+        steps: newSteps,
+      });
+      await loadTestCaseData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error("調整步驟順序失敗：" + msg);
     }
   };
 
@@ -321,7 +405,7 @@ export default function TestCaseDetailView() {
       <div className="px-8 py-6 flex items-center justify-between flex-shrink-0 animate-fadeIn gap-4">
         <div>
           <h2 className="text-xl font-bold tracking-tight text-zinc-100">
-            {isEditing ? "編輯測試案例" : testcase.name}
+            {testcase.name}
           </h2>
           <p className="text-xs font-mono text-zinc-500 mt-1">
             ID: {testcase.id}
@@ -330,35 +414,29 @@ export default function TestCaseDetailView() {
 
         {/* 右側操作按鈕 */}
         <div className="flex items-center gap-2">
-          {!isEditing && activeTab === "steps" && (
-            <>
-              <Button
-                variant="outline"
-                onClick={() => setIsEditing(true)}
-                className="border-zinc-800 hover:bg-zinc-900 hover:text-zinc-100 text-zinc-300 gap-1.5"
-              >
-                <Edit size={14} /> 編輯步驟
-              </Button>
-              <Button
-                onClick={handleRunTestCase}
-                disabled={
-                  isTriggering || !testcase.steps || testcase.steps.length === 0
-                }
-                title={
-                  !testcase.steps || testcase.steps.length === 0
-                    ? "請先新增至少一個測試步驟才能執行"
-                    : undefined
-                }
-                className="bg-emerald-600 text-white hover:bg-emerald-500 font-semibold gap-1.5 shadow-lg shadow-emerald-600/10 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {isTriggering ? (
-                  <LoaderCircle size={14} className="animate-spin" />
-                ) : (
-                  <Play size={14} fill="white" />
-                )}
-                執行測試
-              </Button>
-            </>
+          {activeTab === "steps" && (
+            <Button
+              onClick={handleRunTestCase}
+              disabled={
+                isTriggering ||
+                editingIndex !== null ||
+                !testcase.steps ||
+                testcase.steps.length === 0
+              }
+              title={
+                !testcase.steps || testcase.steps.length === 0
+                  ? "請先新增至少一個測試步驟才能執行"
+                  : undefined
+              }
+              className="bg-emerald-600 text-white hover:bg-emerald-500 font-semibold gap-1.5 shadow-lg shadow-emerald-600/10 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {isTriggering ? (
+                <LoaderCircle size={14} className="animate-spin" />
+              ) : (
+                <Play size={14} fill="white" />
+              )}
+              執行測試
+            </Button>
           )}
         </div>
       </div>
@@ -375,7 +453,7 @@ export default function TestCaseDetailView() {
           <TabsList variant="line">
             <TabsTrigger
               value="steps"
-              disabled={isEditing}
+              disabled={editingIndex !== null}
               className="px-4 py-2.5 font-bold text-xs"
             >
               <GitCommitVertical size={14} />
@@ -383,7 +461,7 @@ export default function TestCaseDetailView() {
             </TabsTrigger>
             <TabsTrigger
               value="history"
-              disabled={isEditing}
+              disabled={editingIndex !== null}
               className="px-4 py-2.5 font-bold text-xs"
             >
               <Clock size={14} />
@@ -391,7 +469,7 @@ export default function TestCaseDetailView() {
             </TabsTrigger>
             <TabsTrigger
               value="setting"
-              disabled={isEditing}
+              disabled={editingIndex !== null}
               className="px-4 py-2.5 font-bold text-xs"
             >
               <Settings size={14} />
@@ -406,58 +484,49 @@ export default function TestCaseDetailView() {
             <TabsContent value="steps" className="mt-0 outline-none">
               {/* Steps Tab */}
               <div className="flex flex-col gap-6">
-                {/* 編輯模式表單 */}
-                {isEditing ? (
-                  <TestCaseEditBlock
-                    testcase={testcase}
-                    isSaving={isSaving}
-                    onSave={handleSaveEdit}
-                    onCancel={() => setIsEditing(false)}
-                  />
-                ) : (
-                  // 唯讀檢視模式
-                  <div className="flex flex-col gap-6">
-                    <div className="flex flex-col gap-3">
-                      {testcase.steps.length === 0 && (
-                        <div className="flex flex-col items-center justify-center py-8 gap-3 text-zinc-600">
-                          <Play size={28} className="opacity-30" />
-                          <p className="text-sm">尚未新增任何步驟</p>
-                          <button
-                            onClick={() => setIsEditing(true)}
-                            className="text-xs text-zinc-400 hover:text-zinc-200 underline underline-offset-2 transition-colors"
-                          >
-                            點擊「編輯步驟」來新增步驟
-                          </button>
-                        </div>
-                      )}
-                      {testcase.steps.map((step, idx) => (
-                        <div
-                          key={idx}
-                          className="flex flex-col gap-1.5 p-3 bg-zinc-900/10 border border-zinc-900 rounded-xl animate-fadeIn"
-                        >
-                          <div className="flex items-start gap-3">
-                            <span className="h-6 w-6 bg-zinc-900 border border-zinc-800 rounded-full flex items-center justify-center text-[10px] font-bold text-zinc-300 font-mono mt-0.5 flex-shrink-0">
-                              {idx + 1}
-                            </span>
-                            <div className="flex-1">
-                              <p className="text-sm text-zinc-200 font-medium">
-                                {step.action}
-                              </p>
-                              {step.expected && (
-                                <p className="text-xs text-zinc-500 mt-1 italic">
-                                  預期結果:{" "}
-                                  <span className="text-zinc-400 not-italic">
-                                    {step.expected}
-                                  </span>
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                <div className="flex flex-col gap-3">
+                  {(!testcase.steps || testcase.steps.length === 0) && (
+                    <div className="flex flex-col items-center justify-center py-12 gap-3 text-zinc-600 bg-zinc-900/10 border border-dashed border-zinc-800 rounded-2xl">
+                      <GitCommitVertical size={32} className="opacity-30" />
+                      <p className="text-sm">尚未新增任何步驟</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAddStep}
+                        className="text-xs border-zinc-850 hover:bg-zinc-900 text-zinc-300"
+                      >
+                        <Plus size={12} className="mr-1" /> 新增第一個步驟
+                      </Button>
                     </div>
-                  </div>
-                )}
+                  )}
+                  {testcase.steps &&
+                    testcase.steps.map((step, idx) => (
+                      <TestCaseStepItem
+                        key={idx}
+                        step={step}
+                        index={idx}
+                        isEditing={editingIndex === idx}
+                        totalSteps={testcase.steps.length}
+                        anyStepEditing={editingIndex !== null}
+                        onEditStart={() => setEditingIndex(idx)}
+                        onCancel={() => handleCancelStep(idx)}
+                        onSave={(updatedStep) =>
+                          handleSaveStep(idx, updatedStep)
+                        }
+                        onDelete={() => handleDeleteStep(idx)}
+                        onMove={(direction) => handleMoveStep(idx, direction)}
+                      />
+                    ))}
+                  {testcase.steps && testcase.steps.length > 0 && (
+                    <button
+                      disabled={editingIndex !== null}
+                      onClick={handleAddStep}
+                      className="w-full py-3 flex items-center justify-center gap-1.5 border border-dashed border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/20 text-zinc-400 hover:text-zinc-200 rounded-xl text-xs font-semibold transition-all duration-200 disabled:opacity-30 disabled:pointer-events-none mt-2"
+                    >
+                      <Plus size={14} /> 新增步驟
+                    </button>
+                  )}
+                </div>
               </div>
             </TabsContent>
 
@@ -483,20 +552,20 @@ export default function TestCaseDetailView() {
                   onSave={handleSaveGeneral}
                   isSaving={isSavingGeneral}
                 />
-                <Separator className="my-10" />
+                <Separator className="my-10 border-zinc-900/50" />
                 <TestCaseFormStorageBlock
                   initialCookies={testcase.initCookies}
                   initialLocalStorage={testcase.initLocalStorage}
                   onSave={handleSaveStorage}
                   isSaving={isSavingStorage}
                 />
-                <Separator className="my-10" />
+                <Separator className="my-10 border-zinc-900/50" />
                 <TestCaseFormVariableBlock
                   initialVariables={testcase.variables || {}}
                   onSave={handleSaveVariable}
                   isSaving={isSavingVariable}
                 />
-                <Separator className="my-10" />
+                <Separator className="my-10 border-zinc-900/50" />
                 <TestCaseFormDangerBlock
                   testcaseName={testcase.name}
                   onTestCaseDelete={handleDeleteTestCase}
