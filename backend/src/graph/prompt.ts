@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 /**
  * 拼裝 AI Agent 單步執行決策的 System Prompt
  */
@@ -13,7 +15,9 @@ export function buildExecutorSystemPrompt(params: {
     `You are a professional Web E2E automation testing AI agent.\n` +
     `- Current Test Case: ${params.testName}\n` +
     `- Current Step (${params.stepIdx + 1}): "${params.stepContent}"\n` +
-    (params.stepExpected ? `- Step Expected Outcome: "${params.stepExpected}"\n` : "") +
+    (params.stepExpected
+      ? `- Step Expected Outcome: "${params.stepExpected}"\n`
+      : "") +
     `\n# Context\n` +
     `- Current Webpage URL: ${params.currentUrl}\n\n` +
     `# Available Tools\n` +
@@ -42,7 +46,6 @@ export function buildExecutorSystemPrompt(params: {
   );
 }
 
-
 /**
  * 拼裝 AI Asserter 最終視覺斷言的 System Prompt
  */
@@ -68,6 +71,13 @@ export function buildAsserterSystemPrompt(params: {
   );
 }
 
+export const FailureSummarySchema = z.object({
+  reason: z.string().describe("推測可能造成失敗的根本原因。"),
+  suggestion: z
+    .string()
+    .describe("使用 Markdown 語法，給開發者的具體修復與改善建議。"),
+});
+
 /**
  * 產出失敗總結的系統提示詞
  */
@@ -85,13 +95,8 @@ export function buildFailureSummarizerSystemPrompt(params: {
     `- Execution Logs: ${JSON.stringify(params.logs)}\n\n` +
     `# Task\n` +
     `Analyze the execution logs and the provided screenshot (if available) to identify why the test failed.\n\n` +
-    `# Output Format (Traditional Chinese Markdown)\n` +
-    `1. ❌ **失敗步驟**：[請指出發生錯誤的具體步驟編號或內容]\n` +
-    `2. 🔍 **根本原因分析**：[請精簡描述失敗的核心原因，例如 DOM 元素未出現、斷言失敗等]\n` +
-    `3. 💡 **修復建議**：[請提供具體的調整建議，例如檢查 Selector、增加等待時間或修改斷言邏輯]\n\n` +
     `# Constraints\n` +
-    `- Keep it professional, clear, and very concise (total under 200 words).\n` +
-    `- Do not use markdown code blocks for the output content itself.`
+    `- Keep it professional, clear, and very concise.\n` +
+    `- Ensure the response strictly conforms to the requested JSON schema.`
   );
 }
-

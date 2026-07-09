@@ -26,8 +26,11 @@ export class TestRun {
   @Column({ type: "bytea", nullable: true, select: false })
   screenshotFailData?: Buffer;
 
-  @Column("text", { nullable: true })
-  failureSummary?: string;
+  @Column("jsonb", { nullable: true })
+  failureSummary?: {
+    reason: string;
+    suggestion: string;
+  };
 
   @Column("integer", { default: 0 })
   asserterPromptTokens!: number;

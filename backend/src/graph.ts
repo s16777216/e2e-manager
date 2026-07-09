@@ -39,7 +39,8 @@ function parseContentToString(content: any): string {
     return content
       .map((item) => {
         if (typeof item === "string") return item;
-        if (item && typeof item === "object" && "text" in item) return item.text;
+        if (item && typeof item === "object" && "text" in item)
+          return item.text;
         return "";
       })
       .join("");
@@ -194,7 +195,6 @@ export class E2EGraphBuilder {
     ];
 
     const response = await this.model.invoke(messages);
-    console.log("executorNode response", response);
 
     const tool_calls = response.tool_calls || [];
     const logs = [...(state.logs || [])];
@@ -515,10 +515,27 @@ export class E2EGraphBuilder {
           }
 
           const response = await this.summarizer_model.invoke(messages);
-          run.failureSummary = parseContentToString(response.content);
+
+          console.log("response", response);
+
+          const result = response.raw.content.at(0);
+
+          if (result && result.type === "text") {
+            run.failureSummary = JSON.parse(result.text);
+          } else {
+            run.failureSummary = {
+              reason: "AI 總結生成出錯：無法解析的內容，請檢查輸出格式。",
+              suggestion: `收到非預期的回應格式：${JSON.stringify(result)}`,
+            };
+          }
         } catch (e: any) {
-          console.error(`[E2E Manager] AI 失敗總結失敗: ${e.message}`);
-          throw e;
+          console.error(
+            `[E2E Manager] AI 失敗總結失敗，採用 Fallback 物件: ${e.message}`,
+          );
+          run.failureSummary = {
+            reason: `AI 總結生成出錯：${e.message}`,
+            suggestion: "請手動檢查步驟日誌與執行截圖以進行排查。",
+          };
         }
       }
 

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import {
   useParams,
   useNavigate,
@@ -14,7 +14,6 @@ import {
   Clock,
   GitCommitVertical,
   Plus,
-  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/custom/StatusBadge";
@@ -25,23 +24,14 @@ import { DataTable } from "@/components/custom/table/DataTable";
 import { DataTableColumnHeader } from "@/components/custom/table/ColumnHeader";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 
-// 引入行內步驟 Item 元件
 import TestCaseStepItem from "../components/TestCaseStepItem";
 
-// 新增設定 Blocks 元件
 import TestCaseFormGeneralBlock from "../components/TestCaseFormGeneralBlock";
 import TestCaseFormStorageBlock from "../components/TestCaseFormStorageBlock";
 import TestCaseFormVariableBlock from "../components/TestCaseFormVariableBlock";
 import TestCaseFormDangerBlock from "../components/TestCaseFormDangerBlock";
-import { AIFailureSummaryPanel } from "@/components/custom/AIFailureSummaryPanel";
+import Typography from "@/components/custom/Typography";
 
 export default function TestCaseDetailView() {
   const { projectId, testCaseId } = useParams();
@@ -337,36 +327,9 @@ export default function TestCaseDetailView() {
         <DataTableColumnHeader column={column} title="執行編號" />
       ),
       cell: ({ row }) => (
-        <div className="flex flex-col gap-2">
-          <span className="font-mono text-zinc-200 group-hover:text-primary transition-colors">
-            #{row.original.id.substring(0, 8)}
-          </span>
-          {row.original.failureSummary && (
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-fit text-[10px] h-6 px-2 border-rose-500/30 text-rose-300 bg-rose-950/20 hover:bg-rose-900/30 hover:text-rose-100 flex items-center gap-1 mt-1"
-                >
-                  <Sparkles className="w-3 h-3 text-rose-400 animate-pulse" />
-                  AI 診斷建議
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl bg-zinc-950 border-zinc-800 text-zinc-100">
-                <DialogHeader>
-                  <DialogTitle className="text-zinc-200">
-                    執行 #{row.original.id.substring(0, 8)} AI 診斷
-                  </DialogTitle>
-                </DialogHeader>
-                <ScrollArea className="max-h-[70vh]">
-                  <div className="pr-4">
-                    <AIFailureSummaryPanel summary={row.original.failureSummary} />
-                  </div>
-                </ScrollArea>
-              </DialogContent>
-            </Dialog>
-          )}
-        </div>
+        <Typography type="inlineCode">
+          #{row.original.id.substring(0, 8)}
+        </Typography>
       ),
     },
     {
@@ -397,6 +360,7 @@ export default function TestCaseDetailView() {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="執行耗時" />
       ),
+      enableSorting: false,
       cell: ({ row }) => {
         let duration = "-";
         if (row.original.createdAt && row.original.finishedAt) {
