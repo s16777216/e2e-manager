@@ -32,14 +32,6 @@ export class TestRun {
     suggestion: string;
   };
 
-  @Column("integer", { default: 0 })
-  asserterPromptTokens!: number;
-
-  @Column("integer", { default: 0 })
-  asserterCompletionTokens!: number;
-
-  @Column("integer", { default: 0 })
-  asserterTotalTokens!: number;
 
   @Column("integer", { default: 0 })
   totalPromptTokens!: number;

@@ -5,28 +5,22 @@ import { SystemSetting } from "../entities/SystemSetting.js";
 export interface AiConfig {
   provider: string;
   executorProvider: string;
-  asserterProvider: string;
   apiKey: string;
   baseUrl: string;
   openaiApiKey: string;
   geminiModel: string;
-  asserterModel: string;
   openaiModel: string;
-  openaiAsserterModel: string;
 }
 
 /** aiConfig 的應用層預設值（provider=google，使用環境變數的 API Key） */
 const DEFAULT_AI_CONFIG: AiConfig = {
   provider: "",
   executorProvider: "",
-  asserterProvider: "",
   apiKey: "",
   baseUrl: "",
   openaiApiKey: "",
   geminiModel: "",
-  asserterModel: "",
   openaiModel: "",
-  openaiAsserterModel: "",
 };
 
 /**
@@ -51,7 +45,6 @@ export async function getSettings(): Promise<
     ...DEFAULT_AI_CONFIG,
     ...dbAiConfig,
     executorProvider: dbAiConfig.executorProvider ?? providerFallback,
-    asserterProvider: dbAiConfig.asserterProvider ?? providerFallback,
   };
 
   return { ...setting, aiConfig };

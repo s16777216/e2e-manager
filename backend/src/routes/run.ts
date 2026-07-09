@@ -272,9 +272,6 @@ runRouter.get("/runs/:runId", async (c) => {
     screenshotFailUrl: run.screenshotFailData
       ? `/api/runs/${run.id}/screenshots/fail`
       : null,
-    asserterPromptTokens: run.asserterPromptTokens,
-    asserterCompletionTokens: run.asserterCompletionTokens,
-    asserterTotalTokens: run.asserterTotalTokens,
     totalPromptTokens: run.totalPromptTokens,
     totalCompletionTokens: run.totalCompletionTokens,
     totalTokens: run.totalTokens,

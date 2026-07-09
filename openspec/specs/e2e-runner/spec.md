@@ -2,9 +2,7 @@
 
 ## Purpose
 端到端執行核心，包含步驟解析、執行佇列、Gemini/OpenAI 多模態決策、observe_web_page 視覺感知標籤貼紙、各操作工具 (click/input/key/hover) 與等待策略、Replay 重放模式、Executor 節點整合步驟預期結果判定與動作等待、以及最後 Asserter 節點廢除視覺斷言的邏輯。
-
 ## Requirements
-
 ### Requirement: TS JSON Test Scenario Parsing
 系統 MUST 能夠解析符合結構的 JSON 測試劇本檔案（使用 Zod 進行欄位驗證），包含：唯一的 `id`、腳本名稱 `name`、測試步驟清單 `steps` 與預期結果描述 `expected`。
 
@@ -98,8 +96,9 @@
 - **THEN** AI SHALL 呼叫 `click` 工具並傳送 `waitStrategy: "waitForText"` 及 `expectedText: "帳號或是密碼錯誤"`，在等待成功後才呼叫 `done_acting`。
 
 ### Requirement: Bypassing Overall Visual Expected Result Check
-系統 MUST 廢棄在測試最後一節點（asserterNode）調用 LLM 進行最終畫面與全局預期結果（testcase.expected）比對判定之邏輯，改為自動標記測試結果為 PASS，並正常關閉瀏覽器。
+系統 MUST 廢棄在測試最後的獨立驗證節點（asserterNode），並將成功的測試結果標記與瀏覽器關閉整合至流程終點的 `reporterNode`。
 
 #### Scenario: 測試所有步驟均順利完成
-- **WHEN** 測試流程中所有定義的步驟均已被 AI 成功執行且單步預期結果（step_expecteds）均校驗通過
-- **THEN** 系統 SHALL 在 asserterNode 自動將 TestRun 的 finalResult 設為 "PASS"，finalReason 設為 "所有測試步驟均已成功執行完畢。"，並安全關閉 Playwright 瀏覽器實例。
+- **WHEN** 測試流程中所有定義的步驟均已被 AI 成功執行且單步預期結果（step_expecteds）均校驗通過，且流程到達 reporterNode
+- **THEN** 系統 SHALL 自動將 TestRun 的 finalResult 設為 "PASS"，finalReason 設為 "所有測試步驟均已成功執行完畢。"，並安全關閉 Playwright 瀏覽器實例。
+

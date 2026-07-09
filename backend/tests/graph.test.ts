@@ -117,12 +117,12 @@ describe("狀態機 Prompt 拼接與條件路由單元測試", () => {
       expect(result).toBe("executor");
     });
 
-    it("7. routeNextStep: 當前步驟索引達到或大於總步驟時應回傳 asserter 進行視覺斷言", () => {
+    it("7. routeNextStep: 當前步驟索引達到或大於總步驟時應回傳 reporter 進行收尾報告", () => {
       const result = routeNextStep({
         current_step_idx: 2,
         steps: ["第一步", "第二步"]
       });
-      expect(result).toBe("asserter");
+      expect(result).toBe("reporter");
     });
   });
 });

@@ -391,59 +391,7 @@ export class E2EGraphBuilder {
   }
 
   /**
-   * 驗證節點：在所有步驟完成後，廢棄視覺預期結果的最終判定，改為自動標記 PASS 並關閉瀏覽器
-   */
-  async asserterNode(state: typeof TestState.State) {
-    let final_result = "PASS";
-    let final_reason = "所有測試步驟均已成功執行完畢。";
-
-    // 關閉瀏覽器，因為測試已結束
-    await this.browserManager.closeBrowser();
-
-    // 更新 TestRun 狀態
-    const testRunRepo = AppDataSource.getRepository(TestRun);
-    const run = await testRunRepo.findOne({ where: { id: state.run_id } });
-    if (run) {
-      run.status = "passed";
-      run.finalResult = final_result;
-      run.finalReason = final_reason;
-      run.finishedAt = new Date();
-      run.asserterPromptTokens = 0;
-      run.asserterCompletionTokens = 0;
-      run.asserterTotalTokens = 0;
-      // 總 token 維持原有累計值，不另外增加
-      run.totalPromptTokens = run.totalPromptTokens || 0;
-      run.totalCompletionTokens = run.totalCompletionTokens || 0;
-      run.totalTokens = run.totalTokens || 0;
-      await testRunRepo.save(run);
-
-      // 發送任務結束通知
-      await testRunRepo.query(`SELECT pg_notify('test_run_logs', $1)`, [
-        JSON.stringify({
-          runId: state.run_id,
-          status: run.status,
-          finalResult: final_result,
-          finalReason: final_reason,
-          event: "completed",
-          timestamp: new Date().toISOString(),
-          asserterPromptTokens: 0,
-          asserterCompletionTokens: 0,
-          asserterTotalTokens: 0,
-          totalPromptTokens: run.totalPromptTokens,
-          totalCompletionTokens: run.totalCompletionTokens,
-          totalTokens: run.totalTokens,
-        }),
-      ]);
-    }
-
-    return {
-      final_result,
-      final_reason,
-    };
-  }
-
-  /**
-   * 報告節點：處理失敗中斷時的安全寫入
+   * 報告節點：處理成功完成或失敗中斷時的安全寫入與收尾
    */
   async reporterNode(state: typeof TestState.State) {
     const update_data: any = {};
@@ -454,6 +402,9 @@ export class E2EGraphBuilder {
     if (currentStepIdx < steps.length) {
       update_data.final_result = "FAIL";
       update_data.final_reason = `步驟 ${currentStepIdx + 1} (『${steps[currentStepIdx]}』) 執行次數達到上限但仍未完成，強制終止測試。`;
+    } else {
+      update_data.final_result = "PASS";
+      update_data.final_reason = "所有測試步驟均已成功執行完畢。";
     }
 
     const merged_result = update_data.final_result || state.final_result;
@@ -677,16 +628,12 @@ export class E2EGraphBuilder {
     return update_data;
   }
 
-  /**
-   * 串接並編譯 LangGraph
-   */
   buildGraph() {
     const workflow = new StateGraph(TestState)
       // 加入節點
       .addNode("init", this.initNode.bind(this))
       .addNode("executor", this.executorNode.bind(this))
       .addNode("step_tracker", this.stepTrackerNode.bind(this))
-      .addNode("asserter", this.asserterNode.bind(this))
       .addNode("reporter", this.reporterNode.bind(this))
 
       // 設定起始點
@@ -703,11 +650,10 @@ export class E2EGraphBuilder {
       // 步驟追蹤後的條件邊
       .addConditionalEdges("step_tracker", routeNextStep as any, {
         executor: "executor",
-        asserter: "asserter",
+        reporter: "reporter",
       })
 
       // 最終邊
-      .addEdge("asserter", "reporter")
       .addEdge("reporter", END);
 
     return workflow.compile();

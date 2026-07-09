@@ -41,19 +41,15 @@ type SettingsFormData = z.infer<typeof settingsSchema>;
 const aiConfigSchema = z
   .object({
     executorProvider: z.string().min(1, "請選擇執行器模型提供者"),
-    asserterProvider: z.string().min(1, "請選擇斷言器模型提供者"),
     apiKey: z.string().optional(),
     geminiModel: z.string().optional(),
-    asserterModel: z.string().optional(),
     openaiApiKey: z.string().optional(),
     baseUrl: z.string().optional(),
     openaiModel: z.string().optional(),
-    openaiAsserterModel: z.string().optional(),
   })
   .superRefine((val, ctx) => {
     // 1. Google 供應商啟用時，金鑰與模型名稱必填
-    const hasGoogle =
-      val.executorProvider === "google" || val.asserterProvider === "google";
+    const hasGoogle = val.executorProvider === "google";
     if (hasGoogle && (!val.apiKey || val.apiKey.trim() === "")) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -73,20 +69,8 @@ const aiConfigSchema = z
       });
     }
 
-    if (
-      val.asserterProvider === "google" &&
-      (!val.asserterModel || val.asserterModel.trim() === "")
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "斷言器選用 Gemini 時，Gemini Asserter 模型名稱為必填",
-        path: ["asserterModel"],
-      });
-    }
-
     // 2. OpenAI 供應商啟用時，金鑰、Base URL 與模型名稱必填
-    const hasOpenAi =
-      val.executorProvider === "openai" || val.asserterProvider === "openai";
+    const hasOpenAi = val.executorProvider === "openai";
     if (hasOpenAi) {
       if (!val.baseUrl || val.baseUrl.trim() === "") {
         ctx.addIssue({
@@ -114,31 +98,17 @@ const aiConfigSchema = z
         path: ["openaiModel"],
       });
     }
-
-    if (
-      val.asserterProvider === "openai" &&
-      (!val.openaiAsserterModel || val.openaiAsserterModel.trim() === "")
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "斷言器選用 OpenAI 時，OpenAI 斷言器模型名稱為必填",
-        path: ["openaiAsserterModel"],
-      });
-    }
   });
 
 type AiConfigFormData = z.infer<typeof aiConfigSchema>;
 
 const DEFAULT_AI_CONFIG: AiConfigFormData = {
   executorProvider: "",
-  asserterProvider: "",
   apiKey: "",
   geminiModel: "",
-  asserterModel: "",
   openaiApiKey: "",
   baseUrl: "",
   openaiModel: "",
-  openaiAsserterModel: "",
 };
 
 export default function SettingsView() {
@@ -151,7 +121,6 @@ export default function SettingsView() {
   const [settings, setSettings] = useState<SettingsFormData | null>(null);
   const [aiConfig, setAiConfig] = useState<AiConfigFormData | null>(null);
   const [executorProvider, setExecutorProvider] = useState<string>("google");
-  const [asserterProvider, setAsserterProvider] = useState<string>("google");
 
   const fetchSettings = async (showLoading = false) => {
     try {
@@ -171,21 +140,15 @@ export default function SettingsView() {
       // 載入 aiConfig（若 DB 有值則用，否則用預設值）
       const ai = data.aiConfig ?? {};
       const execP = ai.executorProvider ?? ai.provider ?? "google";
-      const asseP = ai.asserterProvider ?? ai.provider ?? "google";
       setAiConfig({
         executorProvider: execP,
-        asserterProvider: asseP,
         apiKey: ai.apiKey ?? DEFAULT_AI_CONFIG.apiKey,
         geminiModel: ai.geminiModel ?? DEFAULT_AI_CONFIG.geminiModel,
-        asserterModel: ai.asserterModel ?? DEFAULT_AI_CONFIG.asserterModel,
         openaiApiKey: ai.openaiApiKey ?? DEFAULT_AI_CONFIG.openaiApiKey,
         baseUrl: ai.baseUrl ?? DEFAULT_AI_CONFIG.baseUrl,
         openaiModel: ai.openaiModel ?? DEFAULT_AI_CONFIG.openaiModel,
-        openaiAsserterModel:
-          ai.openaiAsserterModel ?? DEFAULT_AI_CONFIG.openaiAsserterModel,
       });
       setExecutorProvider(execP);
-      setAsserterProvider(asseP);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "載入設定失敗");
     } finally {
@@ -391,65 +354,9 @@ export default function SettingsView() {
               </div>
             </div>
 
-            <Separator className="bg-zinc-800" />
-
-            {/* 斷言器配置區 */}
-            <div className="space-y-4">
-              <Typography type="h6" className="text-zinc-300 font-medium">
-                斷言器配置 (Asserter)
-              </Typography>
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                <FormField
-                  name="asserterProvider"
-                  label="斷言器供應商"
-                  description="決定視覺斷言器模型所使用的 AI 供應商"
-                >
-                  {(field, id) => (
-                    <Select
-                      value={field.value}
-                      onValueChange={(value: string) => {
-                        field.onChange(value);
-                        setAsserterProvider(value);
-                      }}
-                    >
-                      <SelectTrigger id={id}>
-                        <SelectValue placeholder="選擇供應商" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="google">Google Gemini</SelectItem>
-                        <SelectItem value="openai">
-                          OpenAI Compatible
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                </FormField>
-
-                {asserterProvider === "google" ? (
-                  <FormField
-                    name="asserterModel"
-                    label="Gemini Asserter 模型"
-                    description="斷言器使用的 Gemini 模型名稱"
-                  >
-                    <Input placeholder="例如 gemini-2.0-flash" />
-                  </FormField>
-                ) : (
-                  <FormField
-                    name="openaiAsserterModel"
-                    label="OpenAI 斷言器模型"
-                    description="須支援 Vision 與結構化輸出"
-                  >
-                    <Input placeholder="例如 gpt-4o 或 llama3.2-vision" />
-                  </FormField>
-                )}
-              </div>
-            </div>
-
             {/* API 連線憑證區 */}
             {(executorProvider === "google" ||
-              asserterProvider === "google" ||
-              executorProvider === "openai" ||
-              asserterProvider === "openai") && (
+              executorProvider === "openai") && (
               <>
                 <Separator className="bg-zinc-800" />
                 <div className="space-y-4">
@@ -457,8 +364,7 @@ export default function SettingsView() {
                     API 連線憑證配置
                   </Typography>
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                    {(executorProvider === "google" ||
-                      asserterProvider === "google") && (
+                    {(executorProvider === "google") && (
                       <div className="sm:col-span-2">
                         <FormField
                           name="apiKey"
@@ -470,8 +376,7 @@ export default function SettingsView() {
                       </div>
                     )}
 
-                    {(executorProvider === "openai" ||
-                      asserterProvider === "openai") && (
+                    {(executorProvider === "openai") && (
                       <>
                         <div className="sm:col-span-2">
                           <FormField

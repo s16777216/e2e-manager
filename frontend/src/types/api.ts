@@ -64,9 +64,6 @@ export interface TestRun {
   screenshotFailUrl?: string;
   steps?: TestRunStep[];
   testcaseSteps?: TestcaseStep[];
-  asserterPromptTokens?: number;
-  asserterCompletionTokens?: number;
-  asserterTotalTokens?: number;
   totalPromptTokens?: number;
   totalCompletionTokens?: number;
   totalTokens?: number;

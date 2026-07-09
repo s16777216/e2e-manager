@@ -31,14 +31,15 @@ export function routeAfterExecution(state: {
 }
 
 /**
- * 步驟推進後的路由：判斷是否還有下一步，或是進入最終視覺斷言
+ * 步驟推進後的路由：判斷是否還有下一步，或是進入最終報告收尾
  */
 export function routeNextStep(state: {
   current_step_idx: number;
   steps: string[];
-}): "executor" | "asserter" {
+}): "executor" | "reporter" {
   if (state.current_step_idx < state.steps.length) {
     return "executor";
   }
-  return "asserter";
+  return "reporter";
 }
+

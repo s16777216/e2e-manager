@@ -25,14 +25,11 @@ export class SystemSetting {
   aiConfig?: {
     provider?: string;
     executorProvider?: string;
-    asserterProvider?: string;
     apiKey?: string;
     baseUrl?: string;
     openaiApiKey?: string;
     geminiModel?: string;
-    asserterModel?: string;
     openaiModel?: string;
-    openaiAsserterModel?: string;
   };
 
   @CreateDateColumn({ type: "timestamptz" })
