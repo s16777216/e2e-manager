@@ -48,11 +48,14 @@ function parseContentToString(content: any): string {
   return "";
 }
 
+import { AiConfig } from "./services/settingsService.js";
+
 export class E2EGraphBuilder {
   private browserManager: BrowserManager;
   private tools: ClientTool[];
   private model!: Runnable;
   private summarizer_model!: Runnable;
+  private aiConfig!: AiConfig;
 
   /**
    * 使用靜態 create() 工廠方法取得實例，以便在建構子外進行非同步設定載入。
@@ -74,6 +77,7 @@ export class E2EGraphBuilder {
       const aiConfig = settings.aiConfig;
       instance.model = getExecutorModel(aiConfig, instance.tools);
       instance.summarizer_model = getSummarizerModel(aiConfig);
+      instance.aiConfig = aiConfig;
       return instance;
     } catch (err) {
       console.error(
@@ -444,7 +448,8 @@ export class E2EGraphBuilder {
           });
 
           const messages: BaseMessage[] = [new SystemMessage(system_prompt)];
-          if (screenshotFailBuffer) {
+          const sendScreenshot = this.aiConfig?.sendFailureScreenshot ?? true;
+          if (screenshotFailBuffer && sendScreenshot) {
             messages.push(
               new HumanMessage({
                 content: [
@@ -461,6 +466,8 @@ export class E2EGraphBuilder {
                 ],
               }),
             );
+          } else if (!sendScreenshot) {
+            messages.push(new HumanMessage("設定已關閉傳送失敗截圖（使用非多模態模型）。"));
           } else {
             messages.push(new HumanMessage("無法提供失敗截圖。"));
           }

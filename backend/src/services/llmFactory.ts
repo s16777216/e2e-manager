@@ -36,18 +36,18 @@ export function getExecutorModel(aiConfig: AiConfig, tools: any[]): Runnable {
 export function getSummarizerModel(aiConfig: AiConfig): Runnable {
   if (aiConfig.provider === "google") {
     return new ChatGoogleGenerativeAI({
-      model: aiConfig.geminiModel,
+      model: aiConfig.summarizerGeminiModel || aiConfig.geminiModel || "gemini-2.0-flash",
       temperature: 0.2,
       apiKey: aiConfig.apiKey || undefined,
     }).withStructuredOutput(FailureSummarySchema, { includeRaw: true });
   }
 
   return new ChatOpenAI({
-    model: aiConfig.openaiModel,
+    model: aiConfig.summarizerOpenaiModel || aiConfig.openaiModel || "gpt-4o",
     temperature: 0.2,
-    apiKey: aiConfig.openaiApiKey,
+    apiKey: aiConfig.openaiApiKey || "ollama",
     configuration: {
-      baseURL: aiConfig.baseUrl,
+      baseURL: aiConfig.baseUrl || "http://localhost:11434/v1",
     },
   }).withStructuredOutput(FailureSummarySchema, { includeRaw: true });
 }

@@ -41,15 +41,19 @@ type SettingsFormData = z.infer<typeof settingsSchema>;
 const aiConfigSchema = z
   .object({
     executorProvider: z.string().min(1, "請選擇執行器模型提供者"),
+    provider: z.string().min(1, "請選擇失敗總結器模型提供者"),
+    sendFailureScreenshot: z.boolean().optional(),
     apiKey: z.string().optional(),
     geminiModel: z.string().optional(),
     openaiApiKey: z.string().optional(),
     baseUrl: z.string().optional(),
     openaiModel: z.string().optional(),
+    summarizerGeminiModel: z.string().optional(),
+    summarizerOpenaiModel: z.string().optional(),
   })
   .superRefine((val, ctx) => {
-    // 1. Google 供應商啟用時，金鑰與模型名稱必填
-    const hasGoogle = val.executorProvider === "google";
+    // 1. 任一供應商啟用 Google 時，金鑰必填
+    const hasGoogle = val.executorProvider === "google" || val.provider === "google";
     if (hasGoogle && (!val.apiKey || val.apiKey.trim() === "")) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -58,19 +62,8 @@ const aiConfigSchema = z
       });
     }
 
-    if (
-      val.executorProvider === "google" &&
-      (!val.geminiModel || val.geminiModel.trim() === "")
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "執行器選用 Gemini 時，Gemini Executor 模型名稱為必填",
-        path: ["geminiModel"],
-      });
-    }
-
-    // 2. OpenAI 供應商啟用時，金鑰、Base URL 與模型名稱必填
-    const hasOpenAi = val.executorProvider === "openai";
+    // 2. 任一供應商啟用 OpenAI 時，金鑰與 Base URL 必填
+    const hasOpenAi = val.executorProvider === "openai" || val.provider === "openai";
     if (hasOpenAi) {
       if (!val.baseUrl || val.baseUrl.trim() === "") {
         ctx.addIssue({
@@ -88,14 +81,33 @@ const aiConfigSchema = z
       }
     }
 
-    if (
-      val.executorProvider === "openai" &&
-      (!val.openaiModel || val.openaiModel.trim() === "")
-    ) {
+    // 3. 模型名稱必填驗證（依功能模組拆分）
+    if (val.executorProvider === "google" && (!val.geminiModel || val.geminiModel.trim() === "")) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "執行器選用 Gemini 時，Gemini 執行器模型名稱為必填",
+        path: ["geminiModel"],
+      });
+    }
+    if (val.provider === "google" && (!val.summarizerGeminiModel || val.summarizerGeminiModel.trim() === "")) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "總結器選用 Gemini 時，Gemini 總結器模型名稱為必填",
+        path: ["summarizerGeminiModel"],
+      });
+    }
+    if (val.executorProvider === "openai" && (!val.openaiModel || val.openaiModel.trim() === "")) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "執行器選用 OpenAI 時，OpenAI 執行器模型名稱為必填",
         path: ["openaiModel"],
+      });
+    }
+    if (val.provider === "openai" && (!val.summarizerOpenaiModel || val.summarizerOpenaiModel.trim() === "")) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "總結器選用 OpenAI 時，OpenAI 總結器模型名稱為必填",
+        path: ["summarizerOpenaiModel"],
       });
     }
   });
@@ -104,11 +116,15 @@ type AiConfigFormData = z.infer<typeof aiConfigSchema>;
 
 const DEFAULT_AI_CONFIG: AiConfigFormData = {
   executorProvider: "",
+  provider: "",
+  sendFailureScreenshot: true,
   apiKey: "",
   geminiModel: "",
   openaiApiKey: "",
   baseUrl: "",
   openaiModel: "",
+  summarizerGeminiModel: "",
+  summarizerOpenaiModel: "",
 };
 
 export default function SettingsView() {
@@ -121,6 +137,8 @@ export default function SettingsView() {
   const [settings, setSettings] = useState<SettingsFormData | null>(null);
   const [aiConfig, setAiConfig] = useState<AiConfigFormData | null>(null);
   const [executorProvider, setExecutorProvider] = useState<string>("google");
+  const [provider, setProvider] = useState<string>("google");
+  const [sendFailureScreenshot, setSendFailureScreenshot] = useState<boolean>(true);
 
   const fetchSettings = async (showLoading = false) => {
     try {
@@ -140,15 +158,23 @@ export default function SettingsView() {
       // 載入 aiConfig（若 DB 有值則用，否則用預設值）
       const ai = data.aiConfig ?? {};
       const execP = ai.executorProvider ?? ai.provider ?? "google";
+      const summarizerP = ai.provider ?? "google";
+      const sendScreenshot = ai.sendFailureScreenshot ?? true;
       setAiConfig({
         executorProvider: execP,
+        provider: summarizerP,
+        sendFailureScreenshot: sendScreenshot,
         apiKey: ai.apiKey ?? DEFAULT_AI_CONFIG.apiKey,
         geminiModel: ai.geminiModel ?? DEFAULT_AI_CONFIG.geminiModel,
         openaiApiKey: ai.openaiApiKey ?? DEFAULT_AI_CONFIG.openaiApiKey,
         baseUrl: ai.baseUrl ?? DEFAULT_AI_CONFIG.baseUrl,
         openaiModel: ai.openaiModel ?? DEFAULT_AI_CONFIG.openaiModel,
+        summarizerGeminiModel: ai.summarizerGeminiModel ?? DEFAULT_AI_CONFIG.summarizerGeminiModel,
+        summarizerOpenaiModel: ai.summarizerOpenaiModel ?? DEFAULT_AI_CONFIG.summarizerOpenaiModel,
       });
       setExecutorProvider(execP);
+      setProvider(summarizerP);
+      setSendFailureScreenshot(sendScreenshot);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "載入設定失敗");
     } finally {
@@ -334,18 +360,20 @@ export default function SettingsView() {
                   )}
                 </FormField>
 
-                {executorProvider === "google" ? (
+                {executorProvider === "google" && (
                   <FormField
                     name="geminiModel"
-                    label="Gemini Executor 模型"
-                    description="執行器使用的 Gemini 模型名稱"
+                    label="執行器 Gemini 模型"
+                    description="執行瀏覽器操作決策的模型"
                   >
                     <Input placeholder="例如 gemini-2.0-flash" />
                   </FormField>
-                ) : (
+                )}
+
+                {executorProvider === "openai" && (
                   <FormField
                     name="openaiModel"
-                    label="OpenAI 執行器模型"
+                    label="執行器 OpenAI 相容模型"
                     description="須支援 Vision 與 Tool Calling"
                   >
                     <Input placeholder="例如 gpt-4o 或 llama3.2-vision" />
@@ -354,9 +382,86 @@ export default function SettingsView() {
               </div>
             </div>
 
+            <Separator className="bg-zinc-800" />
+
+            {/* 失敗總結器配置區 */}
+            <div className="space-y-4">
+              <Typography type="h6" className="text-zinc-300 font-medium">
+                失敗總結器配置 (Summarizer)
+              </Typography>
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <FormField
+                  name="provider"
+                  label="失敗總結器供應商"
+                  description="決定失敗總結模型所使用的 AI 供應商"
+                >
+                  {(field, id) => (
+                    <Select
+                      value={field.value}
+                      onValueChange={(value: string) => {
+                        field.onChange(value);
+                        setProvider(value);
+                      }}
+                    >
+                      <SelectTrigger id={id}>
+                        <SelectValue placeholder="選擇供應商" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="google">Google Gemini</SelectItem>
+                        <SelectItem value="openai">
+                          OpenAI Compatible
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                </FormField>
+
+                <FormField
+                  name="sendFailureScreenshot"
+                  label="傳送失敗截圖"
+                  description="若總結模型不支援多模態（非視覺模型），請關閉此項"
+                >
+                  {(field, id) => (
+                    <div className="flex items-center mt-2">
+                      <Switch
+                        id={id}
+                        checked={field.value}
+                        onCheckedChange={(checked) => {
+                          field.onChange(checked);
+                          setSendFailureScreenshot(checked);
+                        }}
+                      />
+                    </div>
+                  )}
+                </FormField>
+
+                {provider === "google" && (
+                  <FormField
+                    name="summarizerGeminiModel"
+                    label="總結器 Gemini 模型"
+                    description="生成失敗總結報告的模型，留空則 fallback 至執行器模型"
+                  >
+                    <Input placeholder="例如 gemini-2.0-flash" />
+                  </FormField>
+                )}
+
+                {provider === "openai" && (
+                  <FormField
+                    name="summarizerOpenaiModel"
+                    label="總結器 OpenAI 相容模型"
+                    description="生成失敗總結報告的模型，留空則 fallback 至執行器模型"
+                  >
+                    <Input placeholder="例如 gpt-4o" />
+                  </FormField>
+                )}
+              </div>
+            </div>
+
             {/* API 連線憑證區 */}
             {(executorProvider === "google" ||
-              executorProvider === "openai") && (
+              executorProvider === "openai" ||
+              provider === "google" ||
+              provider === "openai") && (
               <>
                 <Separator className="bg-zinc-800" />
                 <div className="space-y-4">
@@ -364,7 +469,7 @@ export default function SettingsView() {
                     API 連線憑證配置
                   </Typography>
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                    {(executorProvider === "google") && (
+                    {(executorProvider === "google" || provider === "google") && (
                       <div className="sm:col-span-2">
                         <FormField
                           name="apiKey"
@@ -376,7 +481,7 @@ export default function SettingsView() {
                       </div>
                     )}
 
-                    {(executorProvider === "openai") && (
+                    {(executorProvider === "openai" || provider === "openai") && (
                       <>
                         <div className="sm:col-span-2">
                           <FormField

@@ -10,17 +10,23 @@ export interface AiConfig {
   openaiApiKey: string;
   geminiModel: string;
   openaiModel: string;
+  summarizerGeminiModel: string;
+  summarizerOpenaiModel: string;
+  sendFailureScreenshot: boolean;
 }
 
 /** aiConfig 的應用層預設值（provider=google，使用環境變數的 API Key） */
 const DEFAULT_AI_CONFIG: AiConfig = {
-  provider: "",
-  executorProvider: "",
+  provider: "google",
+  executorProvider: "google",
   apiKey: "",
   baseUrl: "",
   openaiApiKey: "",
   geminiModel: "",
   openaiModel: "",
+  summarizerGeminiModel: "",
+  summarizerOpenaiModel: "",
+  sendFailureScreenshot: true,
 };
 
 /**

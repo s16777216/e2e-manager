@@ -20,7 +20,6 @@ export class SystemSetting {
   @Column("integer", { default: 10000 })
   defaultTimeout!: number;
 
-  // 為下一階段 support-openai-models 預留的 JSONB 欄位，以維持前瞻相容性
   @Column("jsonb", { nullable: true })
   aiConfig?: {
     provider?: string;
@@ -30,6 +29,9 @@ export class SystemSetting {
     openaiApiKey?: string;
     geminiModel?: string;
     openaiModel?: string;
+    summarizerGeminiModel?: string;
+    summarizerOpenaiModel?: string;
+    sendFailureScreenshot?: boolean;
   };
 
   @CreateDateColumn({ type: "timestamptz" })
