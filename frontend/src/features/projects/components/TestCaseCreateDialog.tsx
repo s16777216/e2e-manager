@@ -15,6 +15,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { LoaderCircle } from "lucide-react";
 
@@ -25,7 +27,12 @@ interface TestCaseCreateDialogProps {
   setTargetGroupId: (groupId: string) => void;
   flatGroups: Array<{ id: string; name: string; depth: number }>;
   isSaving: boolean;
-  onSubmit: (name: string, targetGroupId: string) => Promise<void>;
+  onSubmit: (
+    name: string,
+    targetGroupId: string,
+    systemPrompt?: string,
+    disableParentPrompt?: boolean,
+  ) => Promise<void>;
 }
 
 export default function TestCaseCreateDialog({
@@ -38,11 +45,20 @@ export default function TestCaseCreateDialog({
   onSubmit,
 }: TestCaseCreateDialogProps) {
   const [tcName, setTcName] = useState("");
+  const [systemPrompt, setSystemPrompt] = useState("");
+  const [disableParentPrompt, setDisableParentPrompt] = useState(false);
 
   const handleSave = async () => {
     if (!tcName.trim() || !targetGroupId) return;
-    await onSubmit(tcName.trim(), targetGroupId);
+    await onSubmit(
+      tcName.trim(),
+      targetGroupId,
+      systemPrompt.trim() || undefined,
+      disableParentPrompt,
+    );
     setTcName("");
+    setSystemPrompt("");
+    setDisableParentPrompt(false);
   };
 
   return (
@@ -52,6 +68,8 @@ export default function TestCaseCreateDialog({
         onOpenChange(isOpen);
         if (!isOpen) {
           setTcName("");
+          setSystemPrompt("");
+          setDisableParentPrompt(false);
         }
       }}
     >
@@ -98,6 +116,38 @@ export default function TestCaseCreateDialog({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* 停用全域繼承 Switch */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+              停用全域與群組繼承
+            </label>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={disableParentPrompt}
+                onCheckedChange={setDisableParentPrompt}
+              />
+              <span className="text-xs text-zinc-300">
+                {disableParentPrompt ? "已停用上層繼承" : "繼承專案與群組提示詞 (預設)"}
+              </span>
+            </div>
+          </div>
+
+          {/* 案例前置提示詞 Textarea */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                前置提示詞 / UI 指引 (選填)
+              </label>
+              <span className="text-[10px] text-zinc-500">{systemPrompt.length} 字元</span>
+            </div>
+            <Textarea
+              value={systemPrompt}
+              onChange={(e) => setSystemPrompt(e.target.value)}
+              placeholder="例如: 頁面中的下拉選單為動態加載，點擊後請稍候 1 秒。"
+              className="bg-zinc-950 border-zinc-800 text-zinc-100 font-mono text-xs min-h-[70px]"
+            />
           </div>
         </div>
 

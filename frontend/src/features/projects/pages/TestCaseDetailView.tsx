@@ -32,6 +32,7 @@ import TestCaseFormStorageBlock from "../components/TestCaseFormStorageBlock";
 import TestCaseFormVariableBlock from "../components/TestCaseFormVariableBlock";
 import TestCaseFormDangerBlock from "../components/TestCaseFormDangerBlock";
 import Typography from "@/components/custom/Typography";
+import TestCaseFormPromptBlock from "../components/TestCaseFormPromptBlock";
 
 export default function TestCaseDetailView() {
   const { projectId, testCaseId } = useParams();
@@ -49,6 +50,7 @@ export default function TestCaseDetailView() {
 
   // 設定 Block 個別儲存狀態
   const [isSavingGeneral, setIsSavingGeneral] = useState(false);
+  const [isSavingPrompt, setIsSavingPrompt] = useState(false);
   const [isSavingStorage, setIsSavingStorage] = useState(false);
   const [isSavingVariable, setIsSavingVariable] = useState(false);
 
@@ -195,21 +197,43 @@ export default function TestCaseDetailView() {
   };
 
   // 儲存基本資訊修改
-  const handleSaveGeneral = async (name: string) => {
+  const handleSaveGeneral = async (data: { name: string }) => {
     if (!testCaseId || !testcase) return;
     setIsSavingGeneral(true);
     try {
       await api.updateTestcase(testCaseId, {
         ...testcase,
-        name,
+        name: data.name,
       });
-      toast.success("測試案例名稱已更新！");
+      toast.success("測試案例基本資訊已更新！");
       await loadTestCaseData();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error("更新名稱失敗：" + msg);
     } finally {
       setIsSavingGeneral(false);
+    }
+  };
+
+  const handleSavePrompt = async (data: {
+    systemPrompt?: string;
+    disableParentPrompt?: boolean;
+  }) => {
+    if (!testCaseId || !testcase) return;
+    setIsSavingPrompt(true);
+    try {
+      await api.updateTestcase(testCaseId, {
+        ...testcase,
+        systemPrompt: data.systemPrompt,
+        disableParentPrompt: data.disableParentPrompt,
+      });
+      toast.success("測試案例 Prompt 已更新！");
+      await loadTestCaseData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error("更新 Prompt 失敗：" + msg);
+    } finally {
+      setIsSavingPrompt(false);
     }
   };
 
@@ -551,6 +575,26 @@ export default function TestCaseDetailView() {
                   initialName={testcase.name}
                   onSave={handleSaveGeneral}
                   isSaving={isSavingGeneral}
+                />
+                <Separator className="my-10 border-zinc-900/50" />
+                <TestCaseFormPromptBlock
+                  initialSystemPrompt={testcase.systemPrompt}
+                  initialDisableParentPrompt={testcase.disableParentPrompt}
+                  parentPromptInfo={{
+                    projectPrompt: testcase.group?.project?.systemPrompt,
+                    groupsPrompts: testcase.group
+                      ? [
+                          {
+                            name: testcase.group.name,
+                            systemPrompt: testcase.group.systemPrompt,
+                            disableParentPrompt:
+                              testcase.group.disableParentPrompt,
+                          },
+                        ]
+                      : [],
+                  }}
+                  onSave={handleSavePrompt}
+                  isSaving={isSavingPrompt}
                 />
                 <Separator className="my-10 border-zinc-900/50" />
                 <TestCaseFormStorageBlock

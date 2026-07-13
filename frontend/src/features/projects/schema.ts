@@ -59,6 +59,7 @@ function validateLocalStorage(str: string): {
 export const schema = z.object({
   name: z.string().min(1, "專案名稱為必填"),
   description: z.string().optional(),
+  systemPrompt: z.string().optional(),
   initCookies: z
     .custom<string>(
       (val) => {
@@ -103,6 +104,10 @@ export const generalFormSchema = schema.pick({
   description: true,
 });
 
+export const promptFormSchema = schema.pick({
+  systemPrompt: true,
+});
+
 export const storageFormSchema = schema.pick({
   initCookies: true,
   initLocalStorage: true,
@@ -110,4 +115,5 @@ export const storageFormSchema = schema.pick({
 
 export type ProjectSchema = z.infer<typeof schema>;
 export type GeneralFormSchema = z.infer<typeof generalFormSchema>;
+export type PromptFormSchema = z.infer<typeof promptFormSchema>;
 export type StorageFormSchema = z.infer<typeof storageFormSchema>;

@@ -32,6 +32,12 @@ export class Testcase {
   @Column("jsonb", { nullable: true })
   variables?: any;
 
+  @Column("text", { nullable: true })
+  systemPrompt?: string;
+
+  @Column("boolean", { default: false })
+  disableParentPrompt?: boolean;
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 

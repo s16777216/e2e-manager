@@ -12,6 +12,9 @@ export class Project {
   @Column("text", { nullable: true })
   description?: string;
 
+  @Column("text", { nullable: true })
+  systemPrompt?: string;
+
   @OneToMany(() => TestGroup, group => group.project)
   groups!: TestGroup[];
 

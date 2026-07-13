@@ -31,6 +31,7 @@ export const TestState = Annotation.Root({
   reports_dir: Annotation<string>(),              // 報告輸出目錄
   screenshots_paths: Annotation<string[]>(),      // 存檔截圖檔案路徑清單 (相對路徑)
   logs: Annotation<LogEntry[]>(),                 // 測試日誌記錄
+  system_prompt: Annotation<string | undefined>(), // 前置提示詞 / UI 指引
   final_result: Annotation<string>(),             // "PASS" | "FAIL" | "ERROR"
   final_reason: Annotation<string>()              // 結果判定理由
 });

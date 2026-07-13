@@ -251,8 +251,34 @@ export class TaskQueue {
       let stepsArray: string[] = [];
       let expectedsArray: string[] = [];
       let interpolatedExpected = "";
+      let interpolatedSystemPrompt: string | undefined = undefined;
 
       try {
+        // 多層級前置提示詞繼承與截斷處理 (Project -> Groups Chain -> Testcase)
+        const promptParts: string[] = [];
+        if (project && project.systemPrompt) {
+          promptParts.push(project.systemPrompt);
+        }
+        for (const group of groupsChain) {
+          if (group.disableParentPrompt) {
+            promptParts.length = 0; // 遇 disableParentPrompt 清空前面累積的上層 prompt
+          }
+          if (group.systemPrompt) {
+            promptParts.push(group.systemPrompt);
+          }
+        }
+        if (fullTestcase.disableParentPrompt) {
+          promptParts.length = 0; // 遇 disableParentPrompt 清空前面累積的上層 prompt
+        }
+        if (fullTestcase.systemPrompt) {
+          promptParts.push(fullTestcase.systemPrompt);
+        }
+
+        const rawMergedPrompt = promptParts.join("\n\n");
+        if (rawMergedPrompt.trim()) {
+          interpolatedSystemPrompt = interpolateString(rawMergedPrompt, flatVariables, runContext, onUndefined);
+        }
+
         stepsArray = (fullTestcase.steps || []).map(s => interpolateString(s.action, flatVariables, runContext, onUndefined));
         expectedsArray = (fullTestcase.steps || []).map(s => interpolateString(s.expected || "", flatVariables, runContext, onUndefined));
         interpolatedExpected = interpolateString(testcase.expected, flatVariables, runContext, onUndefined);
@@ -301,6 +327,7 @@ export class TaskQueue {
         steps: stepsArray,
         step_expecteds: expectedsArray,
         expected: interpolatedExpected,
+        system_prompt: interpolatedSystemPrompt,
         current_step_idx: 0,
         step_retry_count: 0,
         reports_dir: "",

@@ -25,7 +25,7 @@ testcaseRouter.get("/groups/:groupId/testcases", async (c) => {
 
 testcaseRouter.post("/groups/:groupId/testcases", async (c) => {
   const groupId = c.req.param("groupId");
-  const { name, steps, expected, initCookies, initLocalStorage, variables } =
+  const { name, steps, expected, systemPrompt, disableParentPrompt, initCookies, initLocalStorage, variables } =
     await c.req.json();
 
   if (!name) {
@@ -43,6 +43,8 @@ testcaseRouter.post("/groups/:groupId/testcases", async (c) => {
   const testcase = new Testcase();
   testcase.name = name;
   testcase.expected = expected ?? "";
+  testcase.systemPrompt = systemPrompt;
+  if (disableParentPrompt !== undefined) testcase.disableParentPrompt = disableParentPrompt;
   testcase.group = group;
   testcase.initCookies = initCookies;
   testcase.initLocalStorage = initLocalStorage;
@@ -82,7 +84,7 @@ testcaseRouter.get("/testcases/:id", async (c) => {
 
 testcaseRouter.patch("/testcases/:id", async (c) => {
   const id = c.req.param("id");
-  const { name, steps, expected, initCookies, initLocalStorage, variables } =
+  const { name, steps, expected, systemPrompt, disableParentPrompt, initCookies, initLocalStorage, variables } =
     await c.req.json();
 
   const testcaseRepo = AppDataSource.getRepository(Testcase);
@@ -91,6 +93,9 @@ testcaseRouter.patch("/testcases/:id", async (c) => {
     relations: { steps: true },
   });
   if (!testcase) return c.json({ error: "找不到測試案例" }, 404);
+
+  if (systemPrompt !== undefined) testcase.systemPrompt = systemPrompt;
+  if (disableParentPrompt !== undefined) testcase.disableParentPrompt = disableParentPrompt;
 
   if (steps) {
     if (!Array.isArray(steps) || steps.length === 0) {
@@ -116,21 +121,21 @@ testcaseRouter.patch("/testcases/:id", async (c) => {
       });
 
       // 3. 更新 testcase 其他欄位並儲存
-      testcase.name = name;
-      testcase.expected = expected;
-      testcase.initCookies = initCookies;
-      testcase.initLocalStorage = initLocalStorage;
-      testcase.variables = variables;
+      if (name !== undefined) testcase.name = name;
+      if (expected !== undefined) testcase.expected = expected;
+      if (initCookies !== undefined) testcase.initCookies = initCookies;
+      if (initLocalStorage !== undefined) testcase.initLocalStorage = initLocalStorage;
+      if (variables !== undefined) testcase.variables = variables;
       testcase.steps = stepsEntities;
 
       await transactionalEntityManager.save(testcase);
     });
   } else {
-    testcase.name = name;
-    testcase.expected = expected;
-    testcase.initCookies = initCookies;
-    testcase.initLocalStorage = initLocalStorage;
-    testcase.variables = variables;
+    if (name !== undefined) testcase.name = name;
+    if (expected !== undefined) testcase.expected = expected;
+    if (initCookies !== undefined) testcase.initCookies = initCookies;
+    if (initLocalStorage !== undefined) testcase.initLocalStorage = initLocalStorage;
+    if (variables !== undefined) testcase.variables = variables;
     await testcaseRepo.save(testcase);
   }
 

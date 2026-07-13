@@ -10,7 +10,7 @@ type TestCaseGeneralFormValues = z.infer<typeof testCaseGeneralFormSchema>;
 
 interface TestCaseFormGeneralBlockProps {
   initialName: string;
-  onSave: (name: string) => void | Promise<void>;
+  onSave: ({ name }: { name: string }) => void | Promise<void>;
   isSaving?: boolean;
 }
 
@@ -20,7 +20,9 @@ export default function TestCaseFormGeneralBlock({
   isSaving = false,
 }: TestCaseFormGeneralBlockProps) {
   const handleSubmit = async (values: TestCaseGeneralFormValues) => {
-    await onSave(values.name);
+    await onSave({
+      name: values.name,
+    });
   };
 
   return (
@@ -33,8 +35,15 @@ export default function TestCaseFormGeneralBlock({
       submitText={isSaving ? "儲存中..." : "儲存"}
       submitIcon="save"
     >
-      <FormField name="name" label="測試案例名稱" description="這將作為執行報告與列表中顯示的標題。">
-        <Input placeholder="請輸入測試案例名稱" className="bg-zinc-950/80 border text-zinc-100" />
+      <FormField
+        name="name"
+        label="測試案例名稱"
+        description="這將作為執行報告與列表中顯示的標題。"
+      >
+        <Input
+          placeholder="請輸入測試案例名稱"
+          className="bg-zinc-950/80 border text-zinc-100"
+        />
       </FormField>
     </FormBlock>
   );

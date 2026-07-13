@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProjectData } from "../hooks/useProjectData";
 import ProjectFormGeneralBlock from "../components/ProjectFormGeneralBlock";
+import { generalFormSchema } from "../schema";
 import z from "zod";
 
 export default function ProjectCreateView() {
@@ -9,12 +10,7 @@ export default function ProjectCreateView() {
   const { handleCreateProject } = useProjectData();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const formSchema = z.object({
-    name: z.string().min(1, "專案名稱為必填"),
-    description: z.string().optional(),
-  });
-
-  const handleSubmit = async (data: z.infer<typeof formSchema>) => {
+  const handleSubmit = async (data: z.infer<typeof generalFormSchema>) => {
     setIsSubmitting(true);
     try {
       const createProjectResult = await handleCreateProject(
@@ -32,7 +28,7 @@ export default function ProjectCreateView() {
   return (
     <div className="flex-1 p-8 mx-auto w-full space-y-10">
       <ProjectFormGeneralBlock
-        formSchema={formSchema}
+        formSchema={generalFormSchema}
         defaultValues={{
           name: "",
           description: "",

@@ -37,16 +37,18 @@ export const api = {
     initCookies?: unknown,
     initLocalStorage?: unknown,
     variables?: Record<string, VariableItem>,
+    systemPrompt?: string,
   ) =>
     request<Project>("/projects", {
       method: "POST",
-      body: JSON.stringify({ name, description, initCookies, initLocalStorage, variables }),
+      body: JSON.stringify({ name, description, initCookies, initLocalStorage, variables, systemPrompt }),
     }),
   updateProject: (
     projectId: string,
     updates: {
       name?: string;
       description?: string;
+      systemPrompt?: string | null;
       initCookies?: unknown;
       initLocalStorage?: unknown;
       variables?: Record<string, VariableItem> | null;
@@ -71,16 +73,20 @@ export const api = {
     initCookies?: unknown,
     initLocalStorage?: unknown,
     variables?: Record<string, VariableItem>,
+    systemPrompt?: string,
+    disableParentPrompt?: boolean,
   ) =>
     request<TestGroup>(`/projects/${projectId}/groups`, {
       method: "POST",
-      body: JSON.stringify({ name, parentId, initCookies, initLocalStorage, variables }),
+      body: JSON.stringify({ name, parentId, initCookies, initLocalStorage, variables, systemPrompt, disableParentPrompt }),
     }),
   updateGroup: (
     groupId: string,
     data: {
       name?: string;
       parentId?: string | null;
+      systemPrompt?: string | null;
+      disableParentPrompt?: boolean | null;
       initCookies?: unknown;
       initLocalStorage?: unknown;
       variables?: Record<string, VariableItem> | null;
@@ -104,6 +110,8 @@ export const api = {
       name: string;
       steps: Array<{ action: string; expected?: string; hasExpected: boolean }>;
       expected: string;
+      systemPrompt?: string | null;
+      disableParentPrompt?: boolean | null;
       initCookies?: unknown;
       initLocalStorage?: unknown;
       variables?: Record<string, VariableItem> | null;
@@ -119,6 +127,8 @@ export const api = {
       name?: string;
       steps?: Array<{ action: string; expected?: string; hasExpected: boolean }>;
       expected?: string;
+      systemPrompt?: string | null;
+      disableParentPrompt?: boolean | null;
       initCookies?: unknown;
       initLocalStorage?: unknown;
       variables?: Record<string, VariableItem> | null;

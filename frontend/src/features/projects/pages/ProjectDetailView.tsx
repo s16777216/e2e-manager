@@ -268,7 +268,7 @@ export default function ProjectDetailView() {
       const tcs = testcasesMap[node.id] || [];
       const isLoading = loadingMap[node.id] || false;
       const subGroupsCount = node.children?.length || 0;
-      const tcCount = hasLoaded ? tcs.length : (node.testcaseCount || 0);
+      const tcCount = hasLoaded ? tcs.length : node.testcaseCount || 0;
 
       const childrenList: ProjectTreeRow[] = [];
 
@@ -506,34 +506,6 @@ export default function ProjectDetailView() {
     setShowNewGroupModal(true);
   };
 
-  // 儲存新測試案例
-  const handleSaveTestCaseSubmit = async (
-    name: string,
-    targetGroupId: string,
-  ) => {
-    setIsSavingTestCase(true);
-    try {
-      await api.createTestcase(targetGroupId, {
-        name,
-        steps: [],
-        expected: "尚未填寫預期結果",
-        initCookies: {},
-        initLocalStorage: {},
-        variables: {},
-      });
-      toast.success("測試案例建立成功！");
-      setShowNewTestCaseModal(false);
-
-      // 重新整理
-      setRefreshTrigger((prev) => prev + 1);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      toast.error("建立測試案例失敗：" + msg);
-    } finally {
-      setIsSavingTestCase(false);
-    }
-  };
-
   return (
     <div className="flex-1 flex flex-col select-none p-8">
       {/* 頂部 Header & 麵包屑已移至全域 */}
@@ -646,6 +618,8 @@ export default function ProjectDetailView() {
             initCookies,
             initLocalStorage,
             variables,
+            systemPrompt,
+            disableParentPrompt,
           ) => {
             try {
               await api.updateGroup(groupToEdit.id, {
@@ -653,6 +627,8 @@ export default function ProjectDetailView() {
                 initCookies,
                 initLocalStorage,
                 variables,
+                systemPrompt,
+                disableParentPrompt,
               });
               if (projectId) {
                 await loadGroups(projectId);
@@ -674,7 +650,31 @@ export default function ProjectDetailView() {
         setTargetGroupId={setTargetGroupId}
         flatGroups={flatGroups}
         isSaving={isSavingTestCase}
-        onSubmit={handleSaveTestCaseSubmit}
+        onSubmit={async (
+          name,
+          targetGrpId,
+          systemPrompt,
+          disableParentPrompt,
+        ) => {
+          setIsSavingTestCase(true);
+          try {
+            const newTc = await api.createTestcase(targetGrpId, {
+              name,
+              steps: [],
+              expected: "",
+              systemPrompt,
+              disableParentPrompt,
+            });
+            toast.success("測試案例建立成功！");
+            setShowNewTestCaseModal(false);
+            navigate(`/project/${projectId}/testCase/${newTc.id}`);
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            toast.error("建立測試案例失敗：" + msg);
+          } finally {
+            setIsSavingTestCase(false);
+          }
+        }}
       />
 
       <GroupDeleteDialog

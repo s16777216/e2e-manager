@@ -31,6 +31,7 @@ export function useProjectData() {
     initCookies?: unknown,
     initLocalStorage?: unknown,
     variables?: Record<string, VariableItem>,
+    systemPrompt?: string,
   ) => {
     if (!name.trim()) return null;
     try {
@@ -40,6 +41,7 @@ export function useProjectData() {
         initCookies,
         initLocalStorage,
         variables,
+        systemPrompt,
       );
       setProjects((prev) => [...prev, newProj]);
       toast.success("專案建立成功！");
@@ -56,6 +58,7 @@ export function useProjectData() {
     updates: {
       name?: string;
       description?: string;
+      systemPrompt?: string | null;
       initCookies?: unknown;
       initLocalStorage?: unknown;
       variables?: Record<string, VariableItem> | null;

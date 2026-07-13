@@ -14,9 +14,15 @@ import type {
   Project,
   VariableItem,
 } from "@/types/api";
-import { schema, generalFormSchema, storageFormSchema } from "../schema";
+import {
+  schema,
+  generalFormSchema,
+  promptFormSchema,
+  storageFormSchema,
+} from "../schema";
 
 import ProjectFormGeneralBlock from "../components/ProjectFormGeneralBlock";
+import ProjectFormPromptBlock from "../components/ProjectFormPromptBlock";
 import ProjectFormStorageBlock from "../components/ProjectFormStorageBlock";
 import ProjectFormVariableBlock from "../components/ProjectFormVariableBlock";
 import ProjectFormDangerBlock from "../components/ProjectFormDangerBlock";
@@ -32,6 +38,7 @@ export default function ProjectEditView() {
   const [formState, setFormState] = useState<z.infer<typeof schema>>({
     name: activeProject?.name || "",
     description: activeProject?.description || "",
+    systemPrompt: activeProject?.systemPrompt || "",
     initCookies: activeProject?.initCookies
       ? JSON.stringify(activeProject.initCookies, null, 2)
       : "",
@@ -72,7 +79,31 @@ export default function ProjectEditView() {
         description: data.description || "",
       });
       revalidate();
-      toast.success("設定已儲存");
+      toast.success("基本資訊已儲存");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "儲存失敗，請稍後再試";
+      toast.error(msg);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handlePromptFormSave = async (
+    data: z.infer<typeof promptFormSchema>,
+  ) => {
+    setIsSaving(true);
+    try {
+      const updateData = {
+        ...formState,
+        ...data,
+      };
+      setFormState(updateData);
+
+      await handleUpdateProject(activeProject.id, {
+        systemPrompt: data.systemPrompt || "",
+      });
+      revalidate();
+      toast.success("前置提示詞已儲存");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "儲存失敗，請稍後再試";
       toast.error(msg);
@@ -103,7 +134,7 @@ export default function ProjectEditView() {
         initLocalStorage: parsedLocalStorage,
       });
       revalidate();
-      toast.success("設定已儲存");
+      toast.success("儲存與 Cookies 設定已儲存");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "儲存失敗，請稍後再試";
       toast.error(msg);
@@ -152,6 +183,15 @@ export default function ProjectEditView() {
           description: formState.description,
         }}
         onSubmit={handleGeneralFormSave}
+        submitLabel={isSaving ? "儲存中..." : "儲存修改"}
+      />
+      <Separator className="my-10" />
+      <ProjectFormPromptBlock
+        formSchema={promptFormSchema}
+        defaultValues={{
+          systemPrompt: formState.systemPrompt,
+        }}
+        onSubmit={handlePromptFormSave}
         submitLabel={isSaving ? "儲存中..." : "儲存修改"}
       />
       <Separator className="my-10" />

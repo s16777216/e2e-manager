@@ -190,6 +190,7 @@ export class E2EGraphBuilder {
       stepContent: step_content,
       stepExpected: step_expected,
       currentUrl: current_url,
+      systemPrompt: state.system_prompt,
     });
 
     // 2.5 取得當前步驟的歷史執行紀錄（包含工具呼叫與驗證失敗反饋）

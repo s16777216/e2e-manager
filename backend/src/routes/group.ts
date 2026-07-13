@@ -61,7 +61,7 @@ groupRouter.get("/projects/:projectId/groups", async (c) => {
 
 groupRouter.post("/projects/:projectId/groups", async (c) => {
   const projectId = c.req.param("projectId");
-  const { name, parentId, initCookies, initLocalStorage, variables } = await c.req.json();
+  const { name, parentId, systemPrompt, disableParentPrompt, initCookies, initLocalStorage, variables } = await c.req.json();
   if (!name) return c.json({ error: "群組名稱為必填" }, 400);
 
   const project = await AppDataSource.getRepository(Project).findOne({
@@ -72,6 +72,8 @@ groupRouter.post("/projects/:projectId/groups", async (c) => {
   const group = new TestGroup();
   group.name = name;
   group.project = project;
+  group.systemPrompt = systemPrompt;
+  if (disableParentPrompt !== undefined) group.disableParentPrompt = disableParentPrompt;
   group.initCookies = initCookies;
   group.initLocalStorage = initLocalStorage;
   group.variables = variables;
@@ -90,7 +92,7 @@ groupRouter.post("/projects/:projectId/groups", async (c) => {
 
 groupRouter.patch("/groups/:id", async (c) => {
   const id = c.req.param("id");
-  const { name, parentId, initCookies, initLocalStorage, variables } = await c.req.json();
+  const { name, parentId, systemPrompt, disableParentPrompt, initCookies, initLocalStorage, variables } = await c.req.json();
 
   const groupRepo = AppDataSource.getTreeRepository(TestGroup);
   const group = await groupRepo.findOne({
@@ -132,6 +134,8 @@ groupRouter.patch("/groups/:id", async (c) => {
   }
 
   if (name) group.name = name;
+  if (systemPrompt !== undefined) group.systemPrompt = systemPrompt;
+  if (disableParentPrompt !== undefined) group.disableParentPrompt = disableParentPrompt;
   if (initCookies !== undefined) group.initCookies = initCookies;
   if (initLocalStorage !== undefined) group.initLocalStorage = initLocalStorage;
   if (variables !== undefined) group.variables = variables;

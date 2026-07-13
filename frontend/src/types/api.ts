@@ -10,6 +10,7 @@ export interface Project {
   id: string;
   name: string;
   description?: string;
+  systemPrompt?: string | null;
   createdAt: string;
   testcaseCount?: number;
   groups?: TestGroup[];
@@ -23,9 +24,12 @@ export interface TestGroup {
   name: string;
   parent?: TestGroup | null;
   parentId?: string | null;
+  project?: Project | null;
   children?: TestGroup[];
   testcases?: Testcase[];
   testcaseCount?: number;
+  systemPrompt?: string | null;
+  disableParentPrompt?: boolean | null;
   initCookies?: CookiesData | null;
   initLocalStorage?: LocalStorageData | null;
   variables?: Record<string, VariableItem> | null;
@@ -47,6 +51,8 @@ export interface Testcase {
   createdAt: string;
   group?: TestGroup;
   runs?: TestRun[];
+  systemPrompt?: string | null;
+  disableParentPrompt?: boolean | null;
   initCookies?: CookiesData | null;
   initLocalStorage?: LocalStorageData | null;
   variables?: Record<string, VariableItem> | null;

@@ -9,6 +9,7 @@ export function buildExecutorSystemPrompt(params: {
   stepContent: string;
   stepExpected?: string;
   currentUrl: string;
+  systemPrompt?: string;
 }): string {
   return (
     `# Role & Objective\n` +
@@ -20,6 +21,9 @@ export function buildExecutorSystemPrompt(params: {
       : "") +
     `\n# Context\n` +
     `- Current Webpage URL: ${params.currentUrl}\n\n` +
+    (params.systemPrompt && params.systemPrompt.trim()
+      ? `# Page & UI Guide\n${params.systemPrompt.trim()}\n\n`
+      : "") +
     `# Available Tools\n` +
     `You have the following tools:\n` +
     `- **navigate_to(url)**: Navigate to a URL. After navigation, always call observe_web_page to refresh element IDs.\n` +
