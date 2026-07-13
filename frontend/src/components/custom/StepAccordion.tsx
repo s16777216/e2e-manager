@@ -11,6 +11,7 @@ import {
 import type { TestRunStep, TestcaseStep } from "../../types/api";
 import { cn } from "../../lib/utils";
 import { Timeline, TimelineItem } from "../shadcn-studio/blocks/timeline-component-05/timeline-component-05";
+import { ImagePreview } from "./ImagePreview";
 
 interface StepAccordionProps {
   steps: TestRunStep[];
@@ -338,18 +339,20 @@ function StepCard({
               <ImageIcon className="w-3.5 h-3.5 text-zinc-500" />
               <span>步驟執行截圖</span>
             </div>
-            <div className="relative overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 max-w-2xl group/img shadow-md">
-              <img
-                src={step.screenshotUrl}
-                alt={`Step ${step.stepIdx} Screenshot`}
-                className="w-full h-auto object-contain transition-transform duration-500 group-hover/img:scale-[1.01] cursor-zoom-in"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover/img:opacity-100 transition-opacity duration-300 pointer-events-none flex items-end p-2">
-                <span className="text-[10px] text-zinc-300 bg-zinc-900/90 px-2 py-1 rounded border border-zinc-700/30 font-mono">
-                  步驟 {step.stepIdx + 1} 最終狀態畫面
-                </span>
+            <ImagePreview src={step.screenshotUrl} alt={`Step ${step.stepIdx + 1} Screenshot`}>
+              <div className="relative overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 max-w-2xl group/img shadow-md cursor-zoom-in">
+                <img
+                  src={step.screenshotUrl}
+                  alt={`Step ${step.stepIdx + 1} Screenshot`}
+                  className="w-full h-auto object-contain transition-transform duration-500 group-hover/img:scale-[1.01]"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover/img:opacity-100 transition-opacity duration-300 pointer-events-none flex items-end p-2">
+                  <span className="text-[10px] text-zinc-300 bg-zinc-900/90 px-2 py-1 rounded border border-zinc-700/30 font-mono">
+                    步驟 {step.stepIdx + 1} 最終狀態畫面 (點擊全螢幕放大)
+                  </span>
+                </div>
               </div>
-            </div>
+            </ImagePreview>
           </div>
         )}
       </div>
