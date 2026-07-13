@@ -19,22 +19,28 @@
 
 ## Decisions
 
-### 決策 1：繼承合併策略與順序
+### 決策 1：繼承合併策略與「停用全域繼承」開關
 
-我們採用「由上至下 (專案 -> 群組鏈 -> 測試案例) 疊加」的策略，並使用雙換行分隔符：
+我們採用「由上至下 (專案 -> 群組鏈 -> 測試案例) 疊加」的策略，但支援在 TestGroup 與 Testcase 層級透過 `disableParentPrompt` 開關截斷向上繼承：
 
 ```typescript
 const promptParts: string[] = [];
+
+// 如果當前層級開啟了 disableParentPrompt，將清空前面收集到的上層提示詞
 if (project.systemPrompt) promptParts.push(project.systemPrompt);
+
 for (const group of groupsChain) {
+  if (group.disableParentPrompt) promptParts.length = 0; // 截斷上層繼承
   if (group.systemPrompt) promptParts.push(group.systemPrompt);
 }
+
+if (testcase.disableParentPrompt) promptParts.length = 0; // 截斷上層繼承
 if (testcase.systemPrompt) promptParts.push(testcase.systemPrompt);
 
 const mergedSystemPrompt = promptParts.join("\n\n");
 ```
 
-**理由**：最符合直覺。專案級設定為大原則（UI 庫風格），群組設定為特定板塊規則，案例設定為當前步驟最微觀引導，由上至下能讓 LLM 建立正確的上下文順序。
+**理由**：最符合直覺。預設由上至下疊加（專案級設定大原則，群組級設定模組規則，案例級設定當前步驟引導），同時提供 `disableParentPrompt` 讓極少數例外案例能獨立指定自己的全新 Prompt，避免與全域提示詞衝突。
 
 ---
 
@@ -63,15 +69,22 @@ const interpolatedPrompt = interpolateString(mergedSystemPrompt, flatVariables, 
 
 ---
 
-### 決策 4：資料庫更新與 Migration
+### 決策 4：前端經驗與即時組合預覽 (Combined Prompt Preview & Char Counter)
 
-- 新增欄位型別：`@Column("text", { nullable: true })`
-- 由於開發環境通常已配置為自動同步實體變更，我們只需要在專案、群組、測試案例實體中加上該屬性，API 即可自然處理更新。
+- 各輸入欄位下方即時計算與顯示字元數 (e.g. `142 characters`)，方便使用者掌握提示詞長度。
+- 在 `TestCaseEditBlock` 中提供一個「查看最終組合提示詞 (View Combined Prompt)」展開預覽區塊，根據專案 -> 群組鏈 -> 案例的 `systemPrompt` 與 `disableParentPrompt` 設定，模擬即時計算呈現最終會送給 AI 的完整段落與總字碼數。
+
+---
+
+### 決策 5：資料庫更新與 Migration
+
+- `Project`：新增欄位 `systemPrompt` (`@Column("text", { nullable: true })`)
+- `TestGroup`：新增欄位 `systemPrompt` (`@Column("text", { nullable: true })`)，與 `disableParentPrompt` (`@Column("boolean", { default: false })`)
+- `Testcase`：新增欄位 `systemPrompt` (`@Column("text", { nullable: true })`)，與 `disableParentPrompt` (`@Column("boolean", { default: false })`)
 
 ## Risks / Trade-offs
 
 | 風險 | 緩解策略 |
 |------|----------|
-| 提示詞過長導致 LLM Token 爆量或注意力分散 | 在前端欄位提供友善的字數說明，並設定後端合併後的字數警告（或截斷，例如最多 2000 字） |
-| 繼承鏈過深導致重複提示詞 | 提示詞設計應由使用者自行控制，後端單純做順序疊加即可 |
+| 繼承鏈開關混淆 | 在前端提供「查看最終組合提示詞 (View Combined Prompt)」Preview 區塊，顯示哪些上層提示詞被繼承或被遮蔽 |
 | 插值出錯（如 JS 表達式語法錯誤）導致執行中斷 | 與 JS 運算式變數相同的 Try-Catch 防禦，拋出清楚錯誤告知是前置提示詞插值失敗 |
