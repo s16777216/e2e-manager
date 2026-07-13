@@ -11,6 +11,7 @@ import { Task } from "./entities/Task.js";
 import { TestRunStep } from "./entities/TestRunStep.js";
 import { TestcaseStep } from "./entities/TestcaseStep.js";
 import { SystemSetting } from "./entities/SystemSetting.js";
+import { ModelSetting } from "./entities/ModelSetting.js";
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -19,7 +20,7 @@ export const AppDataSource = new DataSource({
   url: databaseUrl || "postgres://postgres:postgres@localhost:5432/e2e_manager",
   synchronize: true, // 自動同步 Schema 到資料庫
   logging: false,
-  entities: [Project, TestGroup, Testcase, TestRun, TestLog, Task, TestRunStep, TestcaseStep, SystemSetting],
+  entities: [Project, TestGroup, Testcase, TestRun, TestLog, Task, TestRunStep, TestcaseStep, SystemSetting, ModelSetting],
   extra: {
     max: 1, // 限制連線池大小為 1，防範 WSL2 Mirrored 網路的 TCP 重複連線 bug
   },

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mergeCookies, mergeLocalStorage, mergeVariables, interpolateString, interpolateObject } from "../../src/services/environmentService";
+import { mergeCookies, mergeLocalStorage, mergeVariables, interpolateString, interpolateObject } from "../../src/services/environmentService.js";
 
 describe("Environment Service - Merging Logic", () => {
   describe("mergeCookies", () => {

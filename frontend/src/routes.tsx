@@ -6,6 +6,7 @@ import SSEConsoleView from "./views/SSEConsoleView";
 import TaskDetailView from "./views/TaskDetailView";
 import HistoryView from "./views/HistoryView";
 import SettingsView from "./views/SettingsView";
+import ModelManageView from "./views/ModelManageView";
 import TestFormView from "./views/TestFormView";
 import {
   ProjectListView,
@@ -21,7 +22,7 @@ import { FolderPlusIcon } from "./components/icon/folder-plus";
 import { HistoryIcon } from "./components/icon/history";
 import { FileTextIcon } from "./components/icon/file-text";
 import { SettingsIcon } from "./components/icon/settings";
-import { SquarePen } from "lucide-react";
+import { SquarePen, Bot } from "lucide-react";
 
 export const router = createBrowserRouter([
   {
@@ -119,6 +120,14 @@ export const router = createBrowserRouter([
         handle: {
           label: "系統設定",
           iconNode: <SettingsIcon size={14} />,
+        } satisfies RouteHandle,
+      },
+      {
+        path: "models",
+        element: <ModelManageView />,
+        handle: {
+          label: "模型管理",
+          iconNode: <Bot size={14} />,
         } satisfies RouteHandle,
       },
       {

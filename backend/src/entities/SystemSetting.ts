@@ -20,18 +20,13 @@ export class SystemSetting {
   @Column("integer", { default: 10000 })
   defaultTimeout!: number;
 
+  @Column("boolean", { default: true })
+  sendFailureScreenshot!: boolean;
+
   @Column("jsonb", { nullable: true })
   aiConfig?: {
-    provider?: string;
-    executorProvider?: string;
-    apiKey?: string;
-    baseUrl?: string;
-    openaiApiKey?: string;
-    geminiModel?: string;
-    openaiModel?: string;
-    summarizerGeminiModel?: string;
-    summarizerOpenaiModel?: string;
-    sendFailureScreenshot?: boolean;
+    executorModelId?: string;
+    reportModelId?: string;
   };
 
   @CreateDateColumn({ type: "timestamptz" })

@@ -20,6 +20,8 @@ import {
 import { routeAfterExecution, routeNextStep } from "./graph/router.js";
 import { getSettings } from "./services/settingsService.js";
 import { getExecutorModel, getSummarizerModel } from "./services/llmFactory.js";
+import { AppDataSource as _AppDS } from "./db.js";
+import { ModelSetting } from "./entities/ModelSetting.js";
 import { Runnable } from "@langchain/core/runnables";
 import { ClientTool, DynamicStructuredToolInput } from "@langchain/core/tools";
 
@@ -48,14 +50,14 @@ function parseContentToString(content: any): string {
   return "";
 }
 
-import { AiConfig } from "./services/settingsService.js";
-
 export class E2EGraphBuilder {
   private browserManager: BrowserManager;
   private tools: ClientTool[];
   private model!: Runnable;
-  private summarizer_model!: Runnable;
-  private aiConfig!: AiConfig;
+  private summarizer_model?: Runnable;
+  private executorModelSetting!: ModelSetting;
+  private reportModelSetting?: ModelSetting;
+  private sendFailureScreenshot: boolean = true;
 
   /**
    * 使用靜態 create() 工廠方法取得實例，以便在建構子外進行非同步設定載入。
@@ -75,13 +77,35 @@ export class E2EGraphBuilder {
     try {
       const settings = await getSettings();
       const aiConfig = settings.aiConfig;
-      instance.model = getExecutorModel(aiConfig, instance.tools);
-      instance.summarizer_model = getSummarizerModel(aiConfig);
-      instance.aiConfig = aiConfig;
+      const modelRepo = _AppDS.getRepository(ModelSetting);
+
+      // 執行器模型：未設定或不存在則拋錯
+      if (!aiConfig.executorModelId) {
+        throw new Error("executorModelId 未設定，請前往系統設定配置執行器模型。");
+      }
+      const executorModel = await modelRepo.findOne({ where: { id: aiConfig.executorModelId } });
+      if (!executorModel) {
+        throw new Error(`executorModelId 所指的模型不存在（id: ${aiConfig.executorModelId}），請重新設定。`);
+      }
+      instance.executorModelSetting = executorModel;
+      instance.model = getExecutorModel(executorModel, instance.tools);
+
+      // 報告器模型：未設定或不存在則 skip（不拋錯）
+      if (aiConfig.reportModelId) {
+        const reportModel = await modelRepo.findOne({ where: { id: aiConfig.reportModelId } });
+        if (reportModel) {
+          instance.reportModelSetting = reportModel;
+          instance.summarizer_model = getSummarizerModel(reportModel);
+        }
+      }
+
+      // sendFailureScreenshot 從頂層讀取
+      instance.sendFailureScreenshot = settings.sendFailureScreenshot ?? true;
+
       return instance;
     } catch (err) {
       console.error(
-        "[E2EGraphBuilder] 讀取 AI 設定失敗，使用環境變數 fallback：",
+        "[E2EGraphBuilder] 初始化失敗：",
         err,
       );
       throw err;
@@ -438,62 +462,67 @@ export class E2EGraphBuilder {
       relations: { testcase: true },
     });
     if (run) {
-      // 1. 如果測試失敗，嘗試生成 AI 總結
+      // 1. 如果測試失敗，嘗試生成 AI 總結（reportModelId 未設定則跳過）
       if (["FAIL", "ERROR"].includes(merged_result)) {
-        try {
-          const system_prompt = buildFailureSummarizerSystemPrompt({
-            testName: state.test_name,
-            expected: run.testcase?.expected || "未知",
-            logs: state.logs || [],
-          });
+        if (!this.summarizer_model) {
+          // reportModelId 未設定或模型不存在，跳過報告生成，failureSummary 保持 null
+          console.log("[E2E Manager] reportModelId 未設定，跳過失敗總結生成。");
+        } else {
+          try {
+            const system_prompt = buildFailureSummarizerSystemPrompt({
+              testName: state.test_name,
+              expected: run.testcase?.expected || "未知",
+              logs: state.logs || [],
+            });
 
-          const messages: BaseMessage[] = [new SystemMessage(system_prompt)];
-          const sendScreenshot = this.aiConfig?.sendFailureScreenshot ?? true;
-          if (screenshotFailBuffer && sendScreenshot) {
-            messages.push(
-              new HumanMessage({
-                content: [
-                  {
-                    type: "text",
-                    text: "這是測試失敗時的截圖：",
-                  },
-                  {
-                    type: "image_url",
-                    image_url: {
-                      url: `data:image/png;base64,${screenshotFailBuffer.toString("base64")}`,
+            const messages: BaseMessage[] = [new SystemMessage(system_prompt)];
+            const sendScreenshot = this.sendFailureScreenshot;
+            if (screenshotFailBuffer && sendScreenshot) {
+              messages.push(
+                new HumanMessage({
+                  content: [
+                    {
+                      type: "text",
+                      text: "這是測試失敗時的截圖：",
                     },
-                  },
-                ],
-              }),
+                    {
+                      type: "image_url",
+                      image_url: {
+                        url: `data:image/png;base64,${screenshotFailBuffer.toString("base64")}`,
+                      },
+                    },
+                  ],
+                }),
+              );
+            } else if (!sendScreenshot) {
+              messages.push(new HumanMessage("設定已關閉傳送失敗截圖（使用非多模態模型）。"));
+            } else {
+              messages.push(new HumanMessage("無法提供失敗截圖。"));
+            }
+
+            const response = await this.summarizer_model.invoke(messages);
+
+            console.log("response", response);
+
+            const result = response.raw.content.at(0);
+
+            if (result && result.type === "text") {
+              run.failureSummary = JSON.parse(result.text);
+            } else {
+              run.failureSummary = {
+                reason: "AI 總結生成出錯：無法解析的內容，請檢查輸出格式。",
+                suggestion: `收到非預期的回應格式：${JSON.stringify(result)}`,
+              };
+            }
+          } catch (e: any) {
+            console.error(
+              `[E2E Manager] AI 失敗總結失敗，採用 Fallback 物件: ${e.message}`,
             );
-          } else if (!sendScreenshot) {
-            messages.push(new HumanMessage("設定已關閉傳送失敗截圖（使用非多模態模型）。"));
-          } else {
-            messages.push(new HumanMessage("無法提供失敗截圖。"));
-          }
-
-          const response = await this.summarizer_model.invoke(messages);
-
-          console.log("response", response);
-
-          const result = response.raw.content.at(0);
-
-          if (result && result.type === "text") {
-            run.failureSummary = JSON.parse(result.text);
-          } else {
             run.failureSummary = {
-              reason: "AI 總結生成出錯：無法解析的內容，請檢查輸出格式。",
-              suggestion: `收到非預期的回應格式：${JSON.stringify(result)}`,
+              reason: `AI 總結生成出錯：${e.message}`,
+              suggestion: "請手動檢查步驟日誌與執行截圖以進行排查。",
             };
           }
-        } catch (e: any) {
-          console.error(
-            `[E2E Manager] AI 失敗總結失敗，採用 Fallback 物件: ${e.message}`,
-          );
-          run.failureSummary = {
-            reason: `AI 總結生成出錯：${e.message}`,
-            suggestion: "請手動檢查步驟日誌與執行截圖以進行排查。",
-          };
         }
       }
 
