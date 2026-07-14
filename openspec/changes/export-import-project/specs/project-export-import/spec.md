@@ -1,10 +1,10 @@
 ## ADDED Requirements
 
 ### Requirement: Export Project Specification and Structure
-The system SHALL provide an API and UI trigger to export a full project specification into a downloadable JSON file.
+The system SHALL provide an API and UI trigger in the Project Edit page to export a full project specification into a downloadable JSON file.
 
-#### Scenario: Successful project export
-- **WHEN** a user triggers export for a valid project ID
+#### Scenario: Successful project export from Project Edit page
+- **WHEN** a user clicks "匯出 JSON" button under the "專案備份與匯出" block in the Project Edit page (`ProjectEditView`)
 - **THEN** the system generates a JSON file with `$schemaVersion: "1.0"` containing all metadata of the Project (name, description, systemPrompt, initCookies, initLocalStorage, variables), its nested TestGroups hierarchy, Testcases, and TestcaseSteps
 - **AND** the system strips out all database internal IDs (UUIDs), created/updated timestamps, and execution history (TestRuns, TestLogs)
 - **AND** the HTTP response header sets `Content-Disposition` to prompt file download named `project-<name>-export.json`

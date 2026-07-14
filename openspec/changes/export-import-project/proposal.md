@@ -10,12 +10,12 @@
 - **前端介面 (Frontend UI)**：
   - 在專案列表頁 (Project List Page) 新增「匯入專案」按鈕，點擊後導頁至獨立的匯入頁面 `/projects/import`。
   - 新增獨立匯入頁面視圖 (`ProjectImportView.tsx` 路由 `/projects/import`)，提供檔案拖曳/選擇上傳、專案基本設定修改、全版面階層樹狀勾選清單（含全選/全部取消/關鍵字搜尋）與確認匯入動作。匯入成功後自動跳轉至新建立的專案頁面。
-  - 在專案操作選單中新增「匯出專案」觸發下載按鈕。
+  - 在編輯專案頁面 (`ProjectEditView.tsx`) 的危險區域上方新增「專案備份與匯出 (Data Export)」區塊，提供「匯出 JSON」按鈕觸發專案 JSON 下載。
 
 ## Capabilities
 
 ### New Capabilities
-- `project-export-import`: 提供專案階層資料（含 Project, TestGroup, Testcase, TestcaseStep）的 JSON 匯出、後端預覽校驗、獨立匯入頁面 (`/projects/import`) 的預覽勾選以及交易安全性匯入。
+- `project-export-import`: 提供專案階層資料（含 Project, TestGroup, Testcase, TestcaseStep）的 JSON 匯出、後端預覽校驗、獨立匯入頁面 (`/projects/import`) 的預覽勾選、專案編輯頁面的專案備份區塊以及交易安全性匯入。
 
 ### Modified Capabilities
 （無變更現有能力）
@@ -29,6 +29,7 @@
   - 後端資料庫操作（TypeORM Entity: Project, TestGroup, Testcase, TestcaseStep）。
 - **Frontend Components & Routing**:
   - 專案列表視圖新增「匯入專案」按鈕。
+  - 編輯專案視圖 (`ProjectEditView.tsx`) 新增專案備份與匯出區塊。
   - 新增前端路由 `/projects/import` 與對應頁面視圖元件 (`ProjectImportView.tsx`)。
   - 匯入樹狀選擇器與搜尋元件。
   - API 串接 Functions (`frontend/src/lib/api/...` 或 service 模組)。

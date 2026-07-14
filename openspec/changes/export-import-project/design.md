@@ -1,6 +1,6 @@
 ## Context
 
-現有的 E2E 測試管理系統包含 Project、TestGroup（樹狀階層）、Testcase 及 TestcaseStep 等核心 TypeORM 實體。為了提升可移植性與測試維護效率，系統需新增「專案層級匯出/匯入」功能。此功能包含後端 API (Node.js/Express + TypeORM) 與前端獨立管理頁面 (`/projects/import`)。
+現有的 E2E 測試管理系統包含 Project、TestGroup（樹狀階層）、Testcase 及 TestcaseStep 等核心 TypeORM 實體。為了提升可移植性與測試維護效率，系統需新增「專案層級匯出/匯入」功能。此功能包含後端 API (Node.js/Express + TypeORM) 與前端獨立管理頁面 (`/projects/import`)，並於專案編輯頁面放置專案備份與匯出區塊。
 
 ## Goals / Non-Goals
 
@@ -9,6 +9,7 @@
 - 提供 `POST /api/projects/import/preview` 由後端驗證上傳 JSON、檢查名稱重複、並組裝出可供選取的階層樹狀預覽結構。
 - 提供 `POST /api/projects/import` 使用 TypeORM EntityManager/QueryRunner 開啟 Transaction，一鍵原子化寫入新 Project 及其被勾選的 TestGroup / Testcase / TestcaseStep。
 - 前端於路由系統新增獨立頁面 `/projects/import` (`ProjectImportView.tsx`)，提供大版面檔案上傳、專案設定修改、樹狀勾選控制（包含搜尋與全選/全部取消）、與匯入成功後自動導頁至新專案 (`/projects/:newProjectId`)。
+- 於編輯專案頁面 (`ProjectEditView.tsx`) 的危險區域 (`ProjectFormDangerBlock.tsx`) 正上方新增「專案備份與匯出 (Data Export)」獨立 FormBlock 卡片，提供「匯出 JSON」按鈕供使用者下載備份。
 - 寫出極度清晰明確的規格與步驟說明，方便後續由小模型執行程式碼寫入。
 
 **Non-Goals:**
@@ -93,10 +94,12 @@ interface ExportTestcasePayload {
   - 遞迴建置 `TestGroup`（維持 parent 關聯）➔ 建置 `Testcase` ➔ 建置 `TestcaseStep`。
   - 發生錯誤全數 Rollback。
 
-### 3. Frontend Architecture & Routing (`frontend/src/views/ProjectImportView.tsx`)
-- 於 `frontend/src/routes.tsx` 新增獨立路由：
-  - Route: `/projects/import` ➔ Component: `ProjectImportView`
-- `ProjectImportView.tsx` 頁面佈局設計：
+### 3. Frontend Architecture & Routing
+- **編輯專案頁面備份區塊 (`ProjectEditView.tsx`)**:
+  - 於 `ProjectFormDangerBlock.tsx` 正上方新增 `ProjectFormExportBlock.tsx` 區塊（標題：專案備份與匯出，描述：將專案規格、測試群組與步驟匯出為 JSON 檔案，以供備份或跨環境轉移）。
+  - 提供「匯出 JSON」按鈕，呼叫 `window.location.href = api.exportProject(projectId)` 觸發下載。
+- **獨立匯入頁面 (`ProjectImportView.tsx`)**:
+  - Route: `/projects/import`
   - Breadcrumb: `專案列表 / 匯入專案`
   - Zone 1: File Dropzone (拖曳/點擊選檔上傳)，上傳成功後觸發 `/api/projects/import/preview`。
   - Zone 2: Project Metadata Form (修改專案名稱、描述)。
