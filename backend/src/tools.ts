@@ -286,6 +286,41 @@ export class BrowserTools {
       },
     );
 
+    /**
+     * execute_javascript：於瀏覽器 context 執行自訂 JS
+     */
+    const execute_javascript = tool(
+      async ({ script }) => {
+        try {
+          const page = this.browserManager.page;
+          if (!page) return "錯誤：瀏覽器未初始化。";
+
+          const result = await page.evaluate(async (code) => {
+            const fn = new Function(`return (async () => { ${code} })();`);
+            return await fn();
+          }, script);
+
+          const resultString =
+            typeof result === "object" ? JSON.stringify(result) : String(result);
+          return `JavaScript 執行成功。腳本回傳值: ${resultString}`;
+        } catch (error: any) {
+          return `執行 JavaScript 失敗：${error.message}`;
+        }
+      },
+      {
+        name: "execute_javascript",
+        description:
+          "在當前瀏覽器頁面中執行自訂的 JavaScript 腳本。當 observe_web_page 未能標記出特定動態元素的數字 ID 時，可用此工具透過 DOM API 直接進行點擊、選取、觸發事件、動態捲動或檢索複雜 DOM 資訊。",
+        schema: z.object({
+          script: z
+            .string()
+            .describe(
+              "要在頁面 context 執行的 JavaScript 程式碼片段（例如: \"document.querySelector('.target-element').click()\"）",
+            ),
+        }),
+      },
+    );
+
     return [
       navigate_to,
       observe_web_page,
@@ -294,6 +329,7 @@ export class BrowserTools {
       key,
       hover,
       wait_for_seconds,
+      execute_javascript,
       done_acting,
     ];
   }
