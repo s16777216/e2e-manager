@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "react-hook-form": {
+      "source": "midudev/autoskills",
+      "sourceType": "github",
+      "skillPath": "packages/autoskills/skills-registry/react-hook-form/SKILL.md",
+      "computedHash": "4e32884be8612b5ce12dd328812f68970e38ef81d6809a0d59225e84e57b17ea"
+    },
     "react-patterns": {
       "source": "affaan-m/ECC",
       "sourceType": "github",

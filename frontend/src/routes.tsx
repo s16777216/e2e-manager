@@ -8,6 +8,7 @@ import HistoryView from "./views/HistoryView";
 import SettingsView from "./views/SettingsView";
 import ModelManageView from "./views/ModelManageView";
 import TestFormView from "./views/TestFormView";
+import ProjectImportView from "./views/ProjectImportView";
 import {
   ProjectListView,
   ProjectCreateView,
@@ -112,6 +113,14 @@ export const router = createBrowserRouter([
         handle: {
           label: "執行紀錄",
           iconNode: <HistoryIcon size={14} />,
+        } satisfies RouteHandle,
+      },
+      {
+        path: "projects/import",
+        element: <ProjectImportView />,
+        handle: {
+          label: "匯入專案",
+          iconNode: <FolderPlusIcon size={14} />,
         } satisfies RouteHandle,
       },
       {

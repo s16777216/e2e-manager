@@ -2,14 +2,19 @@ import { FormBlock, FormField } from "@/components/custom/form";
 import Typography from "@/components/custom/Typography";
 import { Textarea } from "@/components/ui/textarea";
 import type { storageFormSchema } from "../schema";
-import type { UseFormProps } from "react-hook-form";
+import type { Mode, UseFormProps } from "react-hook-form";
 import z from "zod";
 
 interface ProjectFormStorageBlockProps {
   formSchema: typeof storageFormSchema;
-  defaultValues: UseFormProps<z.infer<typeof storageFormSchema>>["defaultValues"];
-  onSubmit: (data: z.infer<typeof storageFormSchema>) => void | Promise<void>;
+  defaultValues: UseFormProps<
+    z.infer<typeof storageFormSchema>
+  >["defaultValues"];
+  onSubmit?: (data: z.infer<typeof storageFormSchema>) => void | Promise<void>;
   submitLabel?: string;
+  showSubmitButton?: boolean;
+  onChange?: (data: z.infer<typeof storageFormSchema>) => unknown;
+  mode?: Mode;
 }
 
 export default function ProjectFormStorageBlock({
@@ -17,6 +22,9 @@ export default function ProjectFormStorageBlock({
   defaultValues,
   onSubmit,
   submitLabel,
+  showSubmitButton = true,
+  onChange,
+  mode,
 }: ProjectFormStorageBlockProps) {
   return (
     <FormBlock
@@ -26,14 +34,15 @@ export default function ProjectFormStorageBlock({
       defaultValues={defaultValues}
       onSubmit={onSubmit}
       submitText={submitLabel}
+      showSubmitButton={showSubmitButton}
+      onChange={onChange}
+      mode={mode}
     >
       <FormField
         name="initCookies"
         label="Cookies"
         description={
-          <Typography type="muted" className="text-[10px] leading-tight">
-            格式為 JSON 物件，例如 {'`{"domain/path": {"key": "value"}}`'}
-          </Typography>
+          <>格式為 JSON 物件，例如 {'`{"domain/path": {"key": "value"}}`'}</>
         }
       >
         <Textarea
@@ -45,9 +54,7 @@ export default function ProjectFormStorageBlock({
         name="initLocalStorage"
         label="LocalStorage"
         description={
-          <Typography type="muted" className="text-[10px] leading-tight">
-            格式為 JSON 物件，例如 {'`{"key": "value"}`'}
-          </Typography>
+          <>格式為 JSON 物件，例如 {'`{"domain/path": {"key": "value"}}`'}</>
         }
       >
         <Textarea

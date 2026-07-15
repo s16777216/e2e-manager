@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { columns } from "../columns/projectColumns";
 import { DataTable } from "../../../components/custom/table/DataTable";
 import { PlusIcon } from "@/components/icon/plus";
+import { FolderPlusIcon } from "@/components/icon/folder-plus";
 
 export default function ProjectListView() {
   const navigate = useNavigate();
@@ -21,6 +22,20 @@ export default function ProjectListView() {
             選擇一個測試專案進入工作區，或在右側建立一個全新專案來開始進行群組與步驟管理。
           </p>
         </div>
+        <div className="flex gap-2">
+            <Button
+                onClick={() => navigate("/project/new")}
+                className="bg-zinc-100 text-zinc-950 hover:bg-zinc-200 transition-all font-semibold flex items-center gap-2 px-5 py-5 shadow-lg shadow-zinc-100/10"
+            >
+                <PlusIcon size={16} /> 建立新專案
+            </Button>
+            <Button
+                onClick={() => navigate("/projects/import")}
+                className="bg-zinc-800 text-zinc-100 hover:bg-zinc-700 transition-all font-semibold flex items-center gap-2 px-5 py-5"
+            >
+                <FolderPlusIcon size={16} /> 匯入專案
+            </Button>
+        </div>
       </div>
 
       {/* 搜尋列與表格內容區 */}
@@ -32,12 +47,6 @@ export default function ProjectListView() {
           onRowDbClick={(row) => navigate(`/project/${row.id}`)}
           topbarContent={
             <div className="flex justify-end w-full">
-              <Button
-                onClick={() => navigate("/project/new")}
-                className="bg-zinc-100 text-zinc-950 hover:bg-zinc-200 transition-all font-semibold flex items-center gap-2 px-5 py-5 shadow-lg shadow-zinc-100/10"
-              >
-                <PlusIcon size={16} /> 建立新專案
-              </Button>
             </div>
           }
         />

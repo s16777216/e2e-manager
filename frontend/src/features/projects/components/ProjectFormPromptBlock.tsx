@@ -1,7 +1,7 @@
 import { FormBlock, FormField } from "@/components/custom/form";
 import type { promptFormSchema } from "../schema";
 import { Textarea } from "@/components/ui/textarea";
-import type { UseFormProps } from "react-hook-form";
+import type { Mode, UseFormProps } from "react-hook-form";
 import z from "zod";
 
 interface ProjectFormPromptBlockProps {
@@ -9,8 +9,11 @@ interface ProjectFormPromptBlockProps {
   defaultValues: UseFormProps<
     z.infer<typeof promptFormSchema>
   >["defaultValues"];
-  onSubmit: (data: z.infer<typeof promptFormSchema>) => void | Promise<void>;
+  onSubmit?: (data: z.infer<typeof promptFormSchema>) => void | Promise<void>;
   submitLabel?: string;
+  showSubmitButton?: boolean;
+  onChange?: (data: z.infer<typeof promptFormSchema>) => unknown;
+  mode?: Mode;
 }
 
 export default function ProjectFormPromptBlock({
@@ -18,6 +21,9 @@ export default function ProjectFormPromptBlock({
   defaultValues,
   onSubmit,
   submitLabel,
+  showSubmitButton = true,
+  onChange,
+  mode,
 }: ProjectFormPromptBlockProps) {
   return (
     <FormBlock
@@ -28,6 +34,9 @@ export default function ProjectFormPromptBlock({
       onSubmit={onSubmit}
       submitText={submitLabel}
       submitIcon="save"
+      showSubmitButton={showSubmitButton}
+      onChange={onChange}
+      mode={mode}
     >
       <FormField
         name="systemPrompt"

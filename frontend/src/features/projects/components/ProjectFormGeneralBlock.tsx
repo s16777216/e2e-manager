@@ -2,7 +2,7 @@ import { FormBlock, FormField } from "@/components/custom/form";
 import type { generalFormSchema } from "../schema";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { UseFormProps } from "react-hook-form";
+import type { Mode, UseFormProps } from "react-hook-form";
 import z from "zod";
 import { IconPicker } from "@/components/ui/icon-picker";
 
@@ -11,8 +11,11 @@ interface ProjectFormGeneralBlockProps {
   defaultValues: UseFormProps<
     z.infer<typeof generalFormSchema>
   >["defaultValues"];
-  onSubmit: (data: z.infer<typeof generalFormSchema>) => void | Promise<void>;
+  onSubmit?: (data: z.infer<typeof generalFormSchema>) => void | Promise<void>;
   submitLabel?: string;
+  showSubmitButton?: boolean;
+  onChange?: (data: z.infer<typeof generalFormSchema>) => unknown;
+  mode?: Mode;
 }
 
 export default function ProjectFormGeneralBlock({
@@ -20,6 +23,9 @@ export default function ProjectFormGeneralBlock({
   defaultValues,
   onSubmit,
   submitLabel,
+  showSubmitButton = true,
+  onChange,
+  mode,
 }: ProjectFormGeneralBlockProps) {
   return (
     <FormBlock
@@ -30,6 +36,9 @@ export default function ProjectFormGeneralBlock({
       onSubmit={onSubmit}
       submitText={submitLabel}
       submitIcon="save"
+      showSubmitButton={showSubmitButton}
+      onChange={onChange}
+      mode={mode}
     >
       <div className="flex flex-row items-center gap-2">
         <FormField

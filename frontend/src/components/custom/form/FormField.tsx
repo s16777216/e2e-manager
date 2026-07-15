@@ -4,13 +4,13 @@ import {
   FieldDescription,
   FieldError,
 } from "@/components/ui/field";
-import React, { useContext } from "react";
+import React from "react";
 import {
   type FieldValues,
   type ControllerRenderProps,
   Controller,
+  useFormContext,
 } from "react-hook-form";
-import { FormContext } from "./FormContext";
 import type { ClassValue } from "clsx";
 import { cn } from "@/lib/utils";
 
@@ -29,7 +29,7 @@ export interface FormFieldProps {
 
 function FormField(props: FormFieldProps) {
   const { name, label, description, children, className = "" } = props;
-  const form = useContext(FormContext);
+  const form = useFormContext();
 
   if (!form) {
     throw new Error("FormField must be used within FormBlock");

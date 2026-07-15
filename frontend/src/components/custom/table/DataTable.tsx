@@ -13,6 +13,8 @@ import {
   getExpandedRowModel,
   type ExpandedState,
   type Row,
+  type TableOptions,
+  type RowSelectionState,
 } from "@tanstack/react-table";
 
 import {
@@ -28,6 +30,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { SearchIcon } from "@/components/icon/searchc";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -41,9 +44,10 @@ export interface DataTableProps<TData, TValue> {
   onGlobalFilterChange?: (value: string) => void;
   getSubRows?: (row: TData) => TData[] | undefined;
   getRowCanExpand?: (row: Row<TData>) => boolean;
-  getRowId?: (row: TData) => string;
+  getRowId: TableOptions<TData>["getRowId"];
   expanded?: ExpandedState;
   onExpandedChange?: React.Dispatch<React.SetStateAction<ExpandedState>>;
+  enableRowSelection: TableOptions<TData>["enableRowSelection"];
 }
 
 export function DataTable<TData, TValue>({
@@ -61,6 +65,7 @@ export function DataTable<TData, TValue>({
   getRowId,
   expanded: controlledExpanded,
   onExpandedChange: controlledOnExpandedChange,
+  enableRowSelection = false,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -78,17 +83,61 @@ export function DataTable<TData, TValue>({
   // 支援受控與非受控狀態下的 expanded
   const [internalExpanded, setInternalExpanded] = useState<ExpandedState>({});
   const isExpandedControlled = controlledExpanded !== undefined;
-  const expanded = isExpandedControlled
-    ? controlledExpanded
-    : internalExpanded;
+  const expanded = isExpandedControlled ? controlledExpanded : internalExpanded;
   const setExpanded = isExpandedControlled
     ? controlledOnExpandedChange
     : setInternalExpanded;
 
+  // selection
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+
+  const renderColumns = () => {
+    const cols = [...columns];
+    if (enableRowSelection) {
+      cols.unshift({
+        id: "selection",
+        size: 10,
+        minSize: 10,
+        maxSize: 10,
+        header: ({ table }) => (
+          <Checkbox
+            checked={
+              table.getIsAllRowsSelected() ||
+              (table.getIsSomeRowsSelected() && "indeterminate")
+            }
+            onCheckedChange={(value) =>
+              table.getToggleAllRowsSelectedHandler()({
+                target: value,
+              })
+            }
+          />
+        ),
+        cell: ({ row }) =>
+          row.getCanExpand() ? (
+            <Checkbox
+              checked={
+                row.getIsAllSubRowsSelected() ||
+                (row.getIsSomeSelected() && "indeterminate")
+              }
+              disabled={!row.getCanSelect()}
+              onCheckedChange={row.getToggleSelectedHandler()}
+            />
+          ) : (
+            <Checkbox
+              checked={row.getIsSelected()}
+              disabled={!row.getCanSelect()}
+              onCheckedChange={row.getToggleSelectedHandler()}
+            />
+          ),
+      });
+    }
+    return cols;
+  };
+
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
-    columns,
+    columns: renderColumns(),
     getSubRows,
     getRowCanExpand,
     getRowId,
@@ -101,14 +150,20 @@ export function DataTable<TData, TValue>({
     onColumnFiltersChange: setColumnFilters,
     getFilteredRowModel: getFilteredRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
+    onGlobalFilterChange: setGlobalFilter,
+    onExpandedChange: setExpanded,
+    enableRowSelection,
+    onRowSelectionChange: setRowSelection,
     state: {
       sorting,
       columnFilters,
       globalFilter,
       expanded,
+      rowSelection,
     },
-    onGlobalFilterChange: setGlobalFilter,
-    onExpandedChange: setExpanded,
+    debugTable: true,
+    debugHeaders: true,
+    debugColumns: true,
   });
 
   return (
@@ -136,13 +191,19 @@ export function DataTable<TData, TValue>({
         </div>
       )}
       <ScrollArea className="w-full rounded-md border mb-2 [&_[data-slot=table-container]]:overflow-visible">
-        <Table>
+        <Table className="w-full table-fixed">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
                   return (
-                    <TableHead key={header.id} className="px-6 py-4">
+                    <TableHead
+                      key={header.id}
+                      className="px-6 py-4"
+                      style={{
+                        width: header.getSize(),
+                      }}
+                    >
                       {header.isPlaceholder
                         ? null
                         : flexRender(
@@ -170,7 +231,13 @@ export function DataTable<TData, TValue>({
                   }
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="px-6 py-4">
+                    <TableCell
+                      key={cell.id}
+                      className="px-6 py-4"
+                      style={{
+                        width: cell.column.getSize(),
+                      }}
+                    >
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext(),

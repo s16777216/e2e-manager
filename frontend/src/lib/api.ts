@@ -3,12 +3,21 @@ import type { Project, TestGroup, Testcase, TestRun, Task, TaskRun, VariableItem
 const BASE_URL = "/api";
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  const isFormData = options?.body instanceof FormData;
+  const headers: Record<string, string> = isFormData
+    ? { ...(options?.headers || {}) }
+    : {
+        "Content-Type": "application/json",
+        ...(options?.headers || {}),
+      };
+
+  if (isFormData) {
+    delete headers["Content-Type"];
+  }
+
   const res = await fetch(`${BASE_URL}${url}`, {
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options?.headers || {}),
-    },
+    headers,
   });
 
   if (!res.ok) {
@@ -173,4 +182,21 @@ export const api = {
 
   // SSE Stream URL helper
   getStreamUrl: (runId: string) => `${BASE_URL}/runs/${runId}/stream`,
+
+  // Export/Import APIs
+  exportProject: (projectId: string) => `${BASE_URL}/projects/${projectId}/export`,
+  previewImportProject: (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return request<any>("/projects/import/preview", {
+      method: "POST",
+      body: formData,
+      headers: {},
+    });
+  },
+  confirmImportProject: (payload: any) =>
+    request<{ id: string; name: string }>("/projects/import", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 };

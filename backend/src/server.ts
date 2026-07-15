@@ -12,11 +12,13 @@ import { runRouter } from "./routes/run.js";
 import { taskRouter } from "./routes/task.js";
 import { settingsRouter } from "./routes/settings.js";
 import { modelsRouter } from "./routes/models.js";
+import { exportImportRouter } from "./routes/exportImport.js";
 
 const app = new Hono();
 
 // 註冊子路由器，以保證與前端原有 API 路徑相容
 app.route("/api/projects", projectRouter);
+app.route("/api", exportImportRouter);
 app.route("/api", groupRouter);
 app.route("/api", testcaseRouter);
 app.route("/api", runRouter);

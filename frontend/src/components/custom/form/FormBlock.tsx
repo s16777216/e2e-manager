@@ -1,5 +1,11 @@
 import { Button } from "src/components/ui/button";
-import { useForm, type UseFormProps } from "react-hook-form";
+import {
+  FormProvider,
+  useForm,
+  useWatch,
+  type Mode,
+  type UseFormProps,
+} from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {
@@ -9,10 +15,10 @@ import {
   FieldLegend,
   FieldSet,
 } from "@/components/ui/field";
-import { FormContext } from "./FormContext";
 import { DynamicIcon, type IconName } from "lucide-react/dynamic";
 import clsx, { type ClassValue } from "clsx";
 import { cn } from "@/lib/utils";
+import { useEffect, useRef } from "react";
 
 export interface FormBlockProps<T extends z.ZodTypeAny> {
   label: React.ReactNode;
@@ -28,6 +34,8 @@ export interface FormBlockProps<T extends z.ZodTypeAny> {
   footerFront?: React.ReactNode;
   footerEnd?: React.ReactNode;
   className?: ClassValue;
+  onChange?: (data: z.infer<T>) => unknown;
+  mode?: Mode;
 }
 
 const FormBlock = <T extends z.ZodTypeAny>(props: FormBlockProps<T>) => {
@@ -45,6 +53,8 @@ const FormBlock = <T extends z.ZodTypeAny>(props: FormBlockProps<T>) => {
     footerFront,
     footerEnd,
     className,
+    onChange,
+    mode,
   } = props;
 
   type FormDataType = z.infer<typeof formSchema>;
@@ -52,7 +62,18 @@ const FormBlock = <T extends z.ZodTypeAny>(props: FormBlockProps<T>) => {
   const form = useForm<FormDataType>({
     resolver: zodResolver(formSchema),
     defaultValues: defaultValues,
+    mode,
   });
+
+  // 使用 useWatch 監聽表單內部即時變更
+  const watchedValues = useWatch<FormDataType>({ control: form.control });
+  const onChangeRef = useRef(onChange);
+
+  useEffect(() => {
+    if (onChangeRef.current && watchedValues) {
+      onChangeRef.current(watchedValues);
+    }
+  }, [watchedValues]);
 
   return (
     <FieldSet
@@ -73,7 +94,7 @@ const FormBlock = <T extends z.ZodTypeAny>(props: FormBlockProps<T>) => {
       <div className="space-y-6 lg:col-span-2">
         <form className="mx-auto" onSubmit={form.handleSubmit(onSubmit)}>
           <FieldGroup>
-            <FormContext.Provider value={form}>{children}</FormContext.Provider>
+            <FormProvider {...form}>{children}</FormProvider>
             <Field orientation="horizontal" className="flex justify-end">
               {footerFront}
               {showSubmitButton && (

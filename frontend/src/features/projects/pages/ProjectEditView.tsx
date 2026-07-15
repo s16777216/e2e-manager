@@ -26,6 +26,7 @@ import ProjectFormPromptBlock from "../components/ProjectFormPromptBlock";
 import ProjectFormStorageBlock from "../components/ProjectFormStorageBlock";
 import ProjectFormVariableBlock from "../components/ProjectFormVariableBlock";
 import ProjectFormDangerBlock from "../components/ProjectFormDangerBlock";
+import ProjectFormExportBlock from "../components/ProjectFormExportBlock";
 
 export default function ProjectEditView() {
   const navigate = useNavigate();
@@ -209,6 +210,8 @@ export default function ProjectEditView() {
         variables={formState.variables!}
         onChange={handleVariablesChange}
       />
+      <Separator className="my-10" />
+      <ProjectFormExportBlock projectId={activeProject.id} />
       <Separator className="my-10" />
       <ProjectFormDangerBlock
         projectName={activeProject.name || ""}
