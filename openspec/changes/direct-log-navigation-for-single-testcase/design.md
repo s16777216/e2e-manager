@@ -176,7 +176,7 @@ const handleRunTestCase = async () => {
   setIsTriggering(true);
   try {
     const res = await api.triggerRun(testCaseId);
-    toast.success("測試任務已啟動！正在轉跳監控頁面...");
+    toast.success("測試已啟動！正在跳轉即時日誌...");
     // 跳轉到 SSE 即時日誌監控頁面 (傳入 res.runId)
     if (res.runId) {
       navigate(`/project/${projectId}/run/${res.runId}`);

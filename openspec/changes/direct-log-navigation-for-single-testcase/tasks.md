@@ -12,7 +12,7 @@
 
 - [ ] 3. 前端視圖 (Views) 導航跳轉調整 <!-- id: frontend-view-navigation -->
   - [ ] 3.1 修改 `frontend/src/views/HistoryView.tsx` 中的 `DataTable` `onRowDbClick` 回調：判斷當 `row.scope === "testcase"` 且 `row.runId` 存在時，navigate 至 `/project/${row.projectId || "unknown"}/run/${row.runId}`。
-  - [ ] 3.2 修改 `frontend/src/features/projects/pages/TestCaseDetailView.tsx` 中的 `handleRunTestCase` 函數：於 API 觸發成功後讀取 `res.runId`，並 navigate 至 `/project/${projectId}/run/${res.runId}`。
+  - [ ] 3.2 修改 `frontend/src/features/projects/pages/TestCaseDetailView.tsx` 中的 `handleRunTestCase` 函數：於 API 觸發成功後讀取 `res.runId`，將 Toast 提示更新為「測試已啟動！正在跳轉即時日誌...」，並 navigate 至 `/project/${projectId}/run/${res.runId}`。
 
 - [ ] 4. 驗證與閉環測試 <!-- id: verification-testing -->
   - [ ] 4.1 測試並確認「單一測試案例詳情」點擊「執行測試」後能直接跳轉至控制台日誌頁。
