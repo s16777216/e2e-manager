@@ -5,10 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import {
   Trash2,
-  Edit2,
   ArrowUp,
   ArrowDown,
-  Check,
   X,
   LoaderCircle,
   Edit,
@@ -55,6 +53,7 @@ export default function TestCaseStepItem({
 
   // 當 isEditing 切換或 step 更新時，重設內部編輯狀態
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setAction(step.action);
     setExpected(step.expected || "");
     setHasExpected(!!step.hasExpected);

@@ -44,10 +44,10 @@ export interface DataTableProps<TData, TValue> {
   onGlobalFilterChange?: (value: string) => void;
   getSubRows?: (row: TData) => TData[] | undefined;
   getRowCanExpand?: (row: Row<TData>) => boolean;
-  getRowId: TableOptions<TData>["getRowId"];
+  getRowId?: TableOptions<TData>["getRowId"];
   expanded?: ExpandedState;
   onExpandedChange?: React.Dispatch<React.SetStateAction<ExpandedState>>;
-  enableRowSelection: TableOptions<TData>["enableRowSelection"];
+  enableRowSelection?: TableOptions<TData>["enableRowSelection"];
 }
 
 export function DataTable<TData, TValue>({

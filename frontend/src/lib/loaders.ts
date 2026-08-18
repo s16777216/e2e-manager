@@ -1,6 +1,7 @@
+import type { LoaderFunctionArgs } from "react-router-dom";
 import { api } from "./api";
 
-export async function projectLoader({ params }: { params: any }) {
+export async function projectLoader({ params }: LoaderFunctionArgs) {
   try {
     const projectId = params.projectId;
     if (!projectId) return null;
@@ -12,7 +13,7 @@ export async function projectLoader({ params }: { params: any }) {
   }
 }
 
-export async function testcaseLoader({ params }: { params: any }) {
+export async function testcaseLoader({ params }: LoaderFunctionArgs) {
   try {
     const { testCaseId } = params;
     if (!testCaseId) return null;
@@ -23,7 +24,7 @@ export async function testcaseLoader({ params }: { params: any }) {
   }
 }
 
-export async function taskLoader({ params }: { params: any }) {
+export async function taskLoader({ params }: LoaderFunctionArgs) {
   try {
     const { taskId } = params;
     if (!taskId) return null;

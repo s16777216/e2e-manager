@@ -14,7 +14,7 @@ const requirements = [
   { regex: /[A-Z]/, text: 'At least 1 uppercase letter' },
   { regex: /[0-9]/, text: 'At least 1 number' },
   {
-    regex: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?]/,
+    regex: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/,
     text: 'At least 1 special character'
   }
 ]

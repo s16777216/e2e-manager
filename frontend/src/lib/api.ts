@@ -1,14 +1,15 @@
-import type { Project, TestGroup, Testcase, TestRun, Task, TaskRun, VariableItem } from "../types/api";
+import type { Project, TestGroup, Testcase, TestRun, Task, TaskRun, VariableItem, ProjectImportPreviewResponse } from "../types/api";
 
 const BASE_URL = "/api";
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const isFormData = options?.body instanceof FormData;
+  const rawHeaders = (options?.headers as Record<string, string>) || {};
   const headers: Record<string, string> = isFormData
-    ? { ...(options?.headers || {}) }
+    ? { ...rawHeaders }
     : {
         "Content-Type": "application/json",
-        ...(options?.headers || {}),
+        ...rawHeaders,
       };
 
   if (isFormData) {
@@ -188,13 +189,13 @@ export const api = {
   previewImportProject: (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
-    return request<any>("/projects/import/preview", {
+    return request<ProjectImportPreviewResponse>("/projects/import/preview", {
       method: "POST",
       body: formData,
       headers: {},
     });
   },
-  confirmImportProject: (payload: any) =>
+  confirmImportProject: (payload: unknown) =>
     request<{ id: string; name: string }>("/projects/import", {
       method: "POST",
       body: JSON.stringify(payload),

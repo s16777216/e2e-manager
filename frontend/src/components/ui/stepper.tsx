@@ -33,9 +33,7 @@ type StepDefinition = {
 };
 
 interface StepperContextValue {
-  stepper: ReturnType<
-    ReturnType<typeof Stepperize.defineStepper>["useStepper"]
-  >;
+  stepper: Stepperize.Stepper<Stepperize.Step[]>;
   steps: StepDefinition[];
   orientation: StepperOrientation;
   configOrientation: StepperOrientation;
@@ -104,16 +102,15 @@ function Stepper({
   ...props
 }: StepperProps) {
   // Define stepper once — steps are expected to be stable references
-  const stepperDefRef = useRef<ReturnType<
-    typeof Stepperize.defineStepper
-  > | null>(null);
+  const stepperDefRef = useRef<Stepperize.StepperDefinition<Stepperize.Step[]> | null>(null);
 
   if (stepperDefRef.current === null) {
-    stepperDefRef.current = Stepperize.defineStepper(steps);
+    stepperDefRef.current = Stepperize.defineStepper(steps as unknown as Stepperize.Step[]);
   }
 
-  const stepper = stepperDefRef.current.useStepper({
-    initialStep: defaultValue || steps[0]?.id,
+  // eslint-disable-next-line react-hooks/refs
+  const stepper = stepperDefRef.current!.useStepper({
+    defaultStep: defaultValue || steps[0]?.id,
   });
 
   const [triggerNodes, setTriggerNodes] = useState<HTMLButtonElement[]>([]);
@@ -357,24 +354,20 @@ function StepperTrigger({
     [registerTrigger],
   );
 
-  // Find our index among triggers for navigation
-  const myIdx = useMemo(
-    () =>
-      triggerNodes.findIndex((n: HTMLButtonElement) => n === btnRef.current),
-    [triggerNodes],
-  );
-
   const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    const currentIdx = triggerNodes.findIndex(
+      (n: HTMLButtonElement) => n === btnRef.current,
+    );
     switch (e.key) {
       case "ArrowRight":
       case "ArrowDown":
         e.preventDefault();
-        if (myIdx !== -1 && focusNext) focusNext(myIdx);
+        if (currentIdx !== -1 && focusNext) focusNext(currentIdx);
         break;
       case "ArrowLeft":
       case "ArrowUp":
         e.preventDefault();
-        if (myIdx !== -1 && focusPrev) focusPrev(myIdx);
+        if (currentIdx !== -1 && focusPrev) focusPrev(currentIdx);
         break;
       case "Home":
         e.preventDefault();

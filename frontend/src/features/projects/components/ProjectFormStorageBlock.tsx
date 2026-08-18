@@ -1,5 +1,4 @@
 import { FormBlock, FormField } from "@/components/custom/form";
-import Typography from "@/components/custom/Typography";
 import { Textarea } from "@/components/ui/textarea";
 import type { storageFormSchema } from "../schema";
 import type { Mode, UseFormProps } from "react-hook-form";

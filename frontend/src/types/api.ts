@@ -133,3 +133,44 @@ export interface SystemSettings {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface ExportTestcasePayload {
+  name: string;
+  expected: string;
+  systemPrompt?: string;
+  disableParentPrompt?: boolean;
+  initCookies?: Record<string, unknown>;
+  initLocalStorage?: Record<string, unknown>;
+  variables?: Record<string, unknown>;
+  steps: Array<{
+    stepIndex: number;
+    action: string;
+    target: string;
+    value?: string;
+  }>;
+}
+
+export interface ExportGroupPayload {
+  tempId?: string;
+  name: string;
+  systemPrompt?: string;
+  disableParentPrompt?: boolean;
+  initCookies?: Record<string, unknown>;
+  initLocalStorage?: Record<string, unknown>;
+  variables?: Record<string, unknown>;
+  children?: ExportGroupPayload[];
+  testcases?: ExportTestcasePayload[];
+}
+
+export interface ProjectImportPreviewResponse {
+  suggestedName?: string;
+  project?: {
+    name?: string;
+    description?: string;
+    systemPrompt?: string | null;
+    initCookies?: Record<string, unknown> | null;
+    initLocalStorage?: Record<string, unknown> | null;
+    variables?: Record<string, unknown> | null;
+  };
+  previewTree?: ExportGroupPayload[];
+}

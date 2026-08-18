@@ -28,7 +28,6 @@ import { Skeleton } from "src/components/ui/skeleton";
 import Fuse from "fuse.js";
 import { useDebounceValue } from "usehooks-ts";
 import type { ClassValue } from "clsx";
-import { ScrollArea } from "./scroll-area";
 
 export type IconData = (typeof iconsData)[number];
 

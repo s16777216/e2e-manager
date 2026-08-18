@@ -198,12 +198,12 @@ const ProjectImportView = () => {
         setFormState({
           name: data.suggestedName || data.project?.name || "",
           description: data.project?.description || "",
-          systemPrompt: data.project?.systemPrompt,
+          systemPrompt: data.project?.systemPrompt || undefined,
           initCookies: JSON.stringify(data.project?.initCookies || {}),
           initLocalStorage: JSON.stringify(
             data.project?.initLocalStorage || {},
           ),
-          variables: data.project?.variables,
+          variables: (data.project?.variables as Record<string, { value: string; description?: string }>) || undefined,
         });
         if (data.previewTree) {
           const processedTree = processTreeForCheckboxes(data.previewTree);
