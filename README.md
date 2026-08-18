@@ -193,7 +193,7 @@ npm run dev
 
 ```bash
 # 編排啟動所有服務 (Frontend:3001, DB:5433)
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
 - **埠口說明**：
