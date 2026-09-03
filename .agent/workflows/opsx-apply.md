@@ -4,7 +4,7 @@ description: Implement tasks from an OpenSpec change (Experimental)
 
 Implement tasks from an OpenSpec change.
 
-**Input**: Optionally specify a change name (e.g., `/opsx:apply add-auth`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Input**: Optionally specify a change name (e.g., `/opsx-apply add-auth`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -15,7 +15,7 @@ Implement tasks from an OpenSpec change.
    - Auto-select if only one active change exists
    - If ambiguous, run `openspec list --json` to get available changes and use the **AskUserQuestion tool** to let the user select
 
-   Always announce: "Using change: <name>" and how to override (e.g., `/opsx:apply <other>`).
+   Always announce: "Using change: <name>" and how to override (e.g., `/opsx-apply <other>`).
 
 2. **Check status to understand the schema**
    ```bash
@@ -38,7 +38,7 @@ Implement tasks from an OpenSpec change.
    - Dynamic instruction based on current state
 
    **Handle states:**
-   - If `state: "blocked"` (missing artifacts): show message, suggest using `/opsx:continue`
+   - If `state: "blocked"` (missing artifacts): show message, suggest using `/opsx-continue`
    - If `state: "all_done"`: congratulate, suggest archive
    - Otherwise: proceed to implementation
 
@@ -48,6 +48,10 @@ Implement tasks from an OpenSpec change.
    The files depend on the schema being used:
    - **spec-driven**: proposal, specs, design, tasks
    - Other schemas: follow the contextFiles from CLI output
+
+   Also read the glossaries if present — specs may reference terms defined there:
+   - `openspec/GLOSSARY.md` (project-level terms, if exists)
+   - `openspec/changes/<name>/GLOSSARY.md` (change-level terms, if exists)
 
 5. **Show current progress**
 
@@ -108,7 +112,7 @@ Working on task 4/7: <task description>
 - [x] Task 2
 ...
 
-All tasks complete! You can archive this change with `/opsx:archive`.
+All tasks complete! You can archive this change with `/opsx-archive`.
 ```
 
 **Output On Pause (Issue Encountered)**

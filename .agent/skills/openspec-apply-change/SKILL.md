@@ -22,7 +22,7 @@ Implement tasks from an OpenSpec change.
    - Auto-select if only one active change exists
    - If ambiguous, run `openspec list --json` to get available changes and use the **AskUserQuestion tool** to let the user select
 
-   Always announce: "Using change: <name>" and how to override (e.g., `/opsx:apply <other>`).
+   Always announce: "Using change: <name>" and how to override (e.g., `/opsx-apply <other>`).
 
 2. **Check status to understand the schema**
    ```bash
@@ -55,6 +55,10 @@ Implement tasks from an OpenSpec change.
    The files depend on the schema being used:
    - **spec-driven**: proposal, specs, design, tasks
    - Other schemas: follow the contextFiles from CLI output
+
+   Also read the glossaries if present — specs may reference terms defined there:
+   - `openspec/GLOSSARY.md` (project-level terms, if exists)
+   - `openspec/changes/<name>/GLOSSARY.md` (change-level terms, if exists)
 
 5. **Show current progress**
 

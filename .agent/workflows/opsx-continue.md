@@ -4,7 +4,7 @@ description: Continue working on a change - create the next artifact (Experiment
 
 Continue working on a change by creating the next artifact.
 
-**Input**: Optionally specify a change name after `/opsx:continue` (e.g., `/opsx:continue add-auth`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Input**: Optionally specify a change name after `/opsx-continue` (e.g., `/opsx-continue add-auth`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -38,7 +38,7 @@ Continue working on a change by creating the next artifact.
    **If all artifacts are complete (`isComplete: true`)**:
    - Congratulate the user
    - Show final status including the schema used
-   - Suggest: "All artifacts created! You can now implement this change with `/opsx:apply` or archive it with `/opsx:archive`."
+   - Suggest: "All artifacts created! You can now implement this change with `/opsx-apply` or archive it with `/opsx-archive`."
    - STOP
 
    ---
@@ -61,6 +61,12 @@ Continue working on a change by creating the next artifact.
      - Use `template` as the structure - fill in its sections
      - Apply `context` and `rules` as constraints when writing - but do NOT copy them into the file
      - Write to the output path specified in instructions
+   - **If the created artifact is the proposal** (the change-describing artifact):
+     - Check the conversation for **confirmed project-specific terms** (from a previous grill/explore "Terms to Record" output or confirmed during this session)
+     - If any exist and are NOT already in project-level `openspec/GLOSSARY.md`, write them to `openspec/changes/<name>/GLOSSARY.md`:
+       - Grouped by capability: `## <capability>`
+       - Format: `- **Term** — Definition. Aliases: alias1、alias2。`
+     - Only record terms confirmed with the user — never fabricate; skip if none
    - Show what was created and what's now unlocked
    - STOP after creating ONE artifact
 
@@ -82,7 +88,7 @@ After each invocation, show:
 - Schema workflow being used
 - Current progress (N/M complete)
 - What artifacts are now unlocked
-- Prompt: "Run `/opsx:continue` to create the next artifact"
+- Prompt: "Run `/opsx-continue` to create the next artifact"
 
 **Artifact Creation Guidelines**
 
