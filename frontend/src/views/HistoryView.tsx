@@ -63,9 +63,24 @@ export default function HistoryView() {
         <DataTable
           columns={columns}
           data={tasks}
-          onRowDbClick={(row) =>
-            navigate(`/project/${row.projectId || "unknown"}/tasks/${row.id}`)
-          }
+          onRowDbClick={(row) => {
+            if (!row.projectId) {
+              toast.error("此任務缺少專案資訊，無法跳轉");
+              return;
+            }
+            if (row.scope === "testcase") {
+              const runId = row.runs?.[0]?.runId;
+              if (runId) {
+                navigate(`/project/${row.projectId}/run/${runId}`);
+              } else {
+                toast.warning("未找到執行記錄，導航至任務詳情");
+                navigate(`/project/${row.projectId}/tasks/${row.id}`);
+              }
+              return;
+            }
+            // scope === "project" 或 "group"：維持既有批次監控頁面行為
+            navigate(`/project/${row.projectId}/tasks/${row.id}`);
+          }}
           showSearch={false}
         />
       </div>

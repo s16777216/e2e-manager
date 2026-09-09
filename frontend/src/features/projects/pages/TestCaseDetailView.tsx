@@ -301,9 +301,16 @@ export default function TestCaseDetailView() {
     setIsTriggering(true);
     try {
       const res = await api.triggerRun(testCaseId);
-      toast.success("測試任務已啟動！正在轉跳監控頁面...");
-      // 跳轉到 SSE 即時監控頁面
-      navigate(`/project/${projectId}/tasks/${res.taskId}`);
+      const runId = res.runs?.[0]?.runId;
+      if (runId) {
+        toast.success("測試已啟動！正在跳轉即時日誌...");
+        // 單一案例直接跳轉到 SSE 即時日誌頁
+        navigate(`/project/${projectId}/run/${runId}`);
+      } else {
+        toast.warning("未找到執行記錄，導航至任務詳情");
+        // 降級至批次任務詳情頁
+        navigate(`/project/${projectId}/tasks/${res.taskId}`);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error("執行測試失敗：" + msg);

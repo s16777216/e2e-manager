@@ -44,6 +44,20 @@ taskRouter.get("/tasks", async (c) => {
 
     const totalTokens = t.runs?.reduce((sum, r) => sum + (r.totalTokens || 0), 0) || 0;
 
+    // 依 createdAt ASC 排序 runs，並映射為 TaskRun 摘要
+    const runs = (t.runs || [])
+      .slice()
+      .sort(
+        (a, b) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      )
+      .map((run) => ({
+        runId: run.id,
+        testcaseId: run.testcase?.id || null,
+        testcaseName: run.testcase?.name || "未知案例",
+        status: run.status,
+      }));
+
     return {
       id: t.id,
       scope: t.scope,
@@ -55,7 +69,8 @@ taskRouter.get("/tasks", async (c) => {
       finishedAt: t.finishedAt,
       projectId,
       projectName,
-      totalTokens
+      totalTokens,
+      runs
     };
   });
 
