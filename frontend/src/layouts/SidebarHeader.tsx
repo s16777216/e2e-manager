@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import logo from "../assets/logo.svg";
+import logo from "../assets/logo.png";
 import {
   SidebarMenu,
   SidebarMenuItem,
@@ -15,7 +15,11 @@ export default function SidebarHeader() {
           <SidebarMenuButton size="lg" asChild>
             <Link to="/">
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg text-sidebar-primary-foreground">
-                <img src={logo} />
+                <img
+                  src={logo}
+                  alt="E2E Manager"
+                  className="size-full rounded-lg object-cover"
+                />
               </div>
               <div className="flex flex-col gap-0.5 leading-none">
                 <Typography
