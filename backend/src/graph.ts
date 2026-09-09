@@ -327,7 +327,7 @@ export class E2EGraphBuilder {
       const base64 = await this.browserManager.getPageScreenshotBase64();
       screenshotBuffer = Buffer.from(base64, "base64");
     } catch (e: any) {
-      console.error(`[E2E Manager] 擷取步驟完成畫面失敗: ${e.message}`);
+      console.error(`[Autape] 擷取步驟完成畫面失敗: ${e.message}`);
     }
 
     // 將日誌與二進位截圖寫入資料庫
@@ -444,7 +444,7 @@ export class E2EGraphBuilder {
         const base64 = await this.browserManager.getPageScreenshotBase64();
         screenshotFailBuffer = Buffer.from(base64, "base64");
       } catch (e: any) {
-        console.error(`[E2E Manager] 無法擷取最終失敗畫面：${e.message}`);
+        console.error(`[Autape] 無法擷取最終失敗畫面：${e.message}`);
       }
     }
 
@@ -467,7 +467,7 @@ export class E2EGraphBuilder {
       if (["FAIL", "ERROR"].includes(merged_result)) {
         if (!this.summarizer_model) {
           // reportModelId 未設定或模型不存在，跳過報告生成，failureSummary 保持 null
-          console.log("[E2E Manager] reportModelId 未設定，跳過失敗總結生成。");
+          console.log("[Autape] reportModelId 未設定，跳過失敗總結生成。");
         } else {
           try {
             const system_prompt = buildFailureSummarizerSystemPrompt({
@@ -517,7 +517,7 @@ export class E2EGraphBuilder {
             }
           } catch (e: any) {
             console.error(
-              `[E2E Manager] AI 失敗總結失敗，採用 Fallback 物件: ${e.message}`,
+              `[Autape] AI 失敗總結失敗，採用 Fallback 物件: ${e.message}`,
             );
             run.failureSummary = {
               reason: `AI 總結生成出錯：${e.message}`,

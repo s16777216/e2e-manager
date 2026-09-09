@@ -1,5 +1,5 @@
 {
-  "name": "e2e-manager-monorepo",
+  "name": "autape-monorepo",
   "private": true,
   "workspaces": [
     "backend",

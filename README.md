@@ -1,4 +1,4 @@
-# Auto Step-by-Step E2E Test Manager
+# Autape
 
 本專案為基於多模態大語言模型 (LLM Agent) 的端到端 (E2E) 自動化驗收測試管理器。使用者僅需以自然語言定義測試劇本與預期結果，系統即可調度 Playwright 進行網頁 DOM 感知標籤化、模擬用戶點擊輸入，並於步驟失敗時調用獨立診斷模型生成結構化失敗原因分析。
 

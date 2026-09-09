@@ -3,7 +3,7 @@
 **Generated:** 2026-07-08
 
 ## OVERVIEW
-E2E Manager TypeScript 專案，用於管理端對端測試腳本與執行環境。
+Autape (原先 E2E Manager) TypeScript 專案，用於管理端對端測試腳本與執行環境。
 
 ## STRUCTURE
 ```

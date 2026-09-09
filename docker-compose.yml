@@ -6,7 +6,7 @@ services:
   # ----------------------------------------------------
   db:
     image: postgres:15-alpine
-    container_name: e2e-manager-db
+    container_name: autape-db
     environment:
       POSTGRES_DB: e2e_manager
       POSTGRES_USER: postgres
@@ -29,7 +29,7 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: e2e-manager-backend
+    container_name: autape-backend
     expose:
       - "3001" # 僅在 Docker 內部虛擬網路中暴露 3001，不直接對外部網路公開
     environment:
@@ -49,7 +49,7 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
-    container_name: e2e-manager-frontend
+    container_name: autape-frontend
     ports:
       - "3001:80" # 將 Nginx 的 80 埠口對外映射至 3001 埠口，達成同源存取
     depends_on:

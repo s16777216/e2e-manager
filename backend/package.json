@@ -1,5 +1,5 @@
 {
-  "name": "e2e-manager-ts",
+  "name": "autape-backend",
   "version": "1.0.0",
   "description": "AI Agent Step-by-Step E2E Test Manager (TypeScript 版)",
   "type": "module",

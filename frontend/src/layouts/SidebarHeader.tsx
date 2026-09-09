@@ -17,22 +17,22 @@ export default function SidebarHeader() {
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg text-sidebar-primary-foreground">
                 <img
                   src={logo}
-                  alt="E2E Manager"
+                  alt="Autape"
                   className="size-full rounded-lg object-cover"
                 />
               </div>
               <div className="flex flex-col gap-0.5 leading-none">
                 <Typography
                   type="h1"
-                  className="text-base font-bold bg-clip-text"
+                  className="text-base font-bold bg-clip-text text-left"
                 >
-                  E2E Manager
+                  Autape
                 </Typography>
                 <Typography
                   type="small"
                   className="text-[10px] text-muted-foreground font-mono"
                 >
-                  STEP-BY-STEP RUNNER
+                  v0.0.0
                 </Typography>
               </div>
             </Link>
