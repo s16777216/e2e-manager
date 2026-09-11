@@ -6,7 +6,7 @@ compatibility: Requires openspec CLI.
 metadata:
   author: openspec
   version: "1.0"
-  generatedBy: "1.3.1"
+  generatedBy: "1.8.0"
 ---
 
 Propose a new change - create the change and generate all artifacts in one step.
@@ -20,11 +20,11 @@ When ready to implement, run /opsx-apply
 
 ---
 
-**Input**: The user's request should include a change name (kebab-case) OR a description of what they want to build.
+**Input**: The argument after `/opsx-propose` is the change name (kebab-case), OR a description of what the user wants to build.
 
 **Steps**
 
-1. **If no clear input provided, ask what they want to build**
+1. **If no input provided, ask what they want to build**
 
    Use the **AskUserQuestion tool** (open-ended, no preset options) to ask:
    > "What change do you want to work on? Describe what you want to build or fix."
@@ -101,7 +101,8 @@ After completing all artifacts, summarize:
 - List of artifacts created with brief descriptions
 - Terms recorded to GLOSSARY.md (N terms) or "(no terms recorded)"
 - What's ready: "All artifacts created! Ready for implementation."
-- Prompt: "Run `/opsx-apply` or ask me to implement to start working on the tasks."
+- Terms recorded to GLOSSARY.md (N terms) or "(no terms recorded)"
+- Prompt: "Run `/opsx-apply` to start implementing."
 - Tip: Mention that custom verification is available via `openspec/VERIFY.md` — it defines per-repo checks that run during `/opsx-verify`.
 
 **Artifact Creation Guidelines**
