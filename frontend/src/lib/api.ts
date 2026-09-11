@@ -1,4 +1,4 @@
-import type { Project, TestGroup, Testcase, TestRun, Task, TaskRun, VariableItem, ProjectImportPreviewResponse } from "../types/api";
+import type { Project, TestGroup, Testcase, TestRun, Task, TaskRun, VariableItem, ProjectImportPreviewResponse, DatabaseStorageMetrics } from "../types/api";
 
 const BASE_URL = "/api";
 
@@ -200,4 +200,5 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  getStorageMetrics: () => request<DatabaseStorageMetrics>("/settings/storage"),
 };

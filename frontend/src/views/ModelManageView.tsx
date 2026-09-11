@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useContext } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -7,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { BaseDialog } from "@/components/custom/BaseDialog";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { FormBlock, FormField } from "@/components/custom/form";
-import { FormContext } from "@/components/custom/form/FormContext";
 import {
   Select,
   SelectContent,
@@ -50,8 +50,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 };
 
 function ModelFields() {
-  const form = useContext(FormContext);
-  const provider = form?.watch("provider") || "google";
+  const provider = useWatch<ModelFormData>({ name: "provider" }) || "google";
 
   return (
     <div className="space-y-4">
@@ -240,16 +239,27 @@ export default function ModelManageView() {
       header: "供應商",
       cell: ({ row }) => {
         const provider = row.original.provider;
+        const baseUrl = row.original.baseUrl;
         return (
-          <span
-            className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-              provider === "google"
-                ? "bg-blue-950/60 text-blue-300 border border-blue-800/50"
-                : "bg-emerald-950/60 text-emerald-300 border border-emerald-800/50"
-            }`}
-          >
-            {PROVIDER_LABELS[provider] ?? provider}
-          </span>
+          <div className="flex flex-col gap-1 items-start">
+            <span
+              className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                provider === "google"
+                  ? "bg-blue-950/60 text-blue-300 border border-blue-800/50"
+                  : "bg-emerald-950/60 text-emerald-300 border border-emerald-800/50"
+              }`}
+            >
+              {PROVIDER_LABELS[provider] ?? provider}
+            </span>
+            {provider === "openai" && (
+              <span
+                className="text-[11px] font-mono text-zinc-400 max-w-[200px] truncate"
+                title={baseUrl || "http://localhost:11434/v1"}
+              >
+                {baseUrl || "http://localhost:11434/v1"}
+              </span>
+            )}
+          </div>
         );
       },
     },

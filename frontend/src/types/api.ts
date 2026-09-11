@@ -174,3 +174,23 @@ export interface ProjectImportPreviewResponse {
   };
   previewTree?: ExportGroupPayload[];
 }
+
+export interface TableStorageMetric {
+  tableName: string;
+  sizeBytes: number;
+  size: string;
+}
+
+export interface ScreenshotMetrics {
+  sizeBytes: number;
+  size: string;
+  count: number;
+  percentage: number;
+}
+
+export interface DatabaseStorageMetrics {
+  databaseSizeBytes: number;
+  databaseSize: string;
+  screenshots: ScreenshotMetrics;
+  tables: TableStorageMetric[];
+}

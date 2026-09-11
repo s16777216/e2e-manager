@@ -10,7 +10,18 @@ import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BaseDialog } from "@/components/custom/BaseDialog";
-import { Loader2, ShieldAlert, Trash2, Bot } from "lucide-react";
+import {
+  Loader2,
+  ShieldAlert,
+  Trash2,
+  Bot,
+  Database,
+  RefreshCw,
+  HardDrive,
+  Image as ImageIcon,
+} from "lucide-react";
+import { api } from "../lib/api";
+import type { DatabaseStorageMetrics } from "../types/api";
 import Typography from "@/components/custom/Typography";
 import {
   Select,
@@ -65,6 +76,32 @@ export default function SettingsView() {
   const [settings, setSettings] = useState<SettingsFormData | null>(null);
   const [aiConfig, setAiConfig] = useState<AiConfigFormData | null>(null);
   const [models, setModels] = useState<ModelOption[]>([]);
+  const [storageMetrics, setStorageMetrics] = useState<DatabaseStorageMetrics | null>(null);
+  const [loadingStorage, setLoadingStorage] = useState(true);
+  const [refreshingStorage, setRefreshingStorage] = useState(false);
+
+  const fetchStorageMetrics = async (isManual = false) => {
+    if (isManual) {
+      setRefreshingStorage(true);
+    } else {
+      setLoadingStorage(true);
+    }
+    try {
+      const data = await api.getStorageMetrics();
+      setStorageMetrics(data);
+      if (isManual) {
+        toast.success("儲存空間指標已更新");
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "載入儲存指標失敗";
+      if (isManual) {
+        toast.error(message);
+      }
+    } finally {
+      setLoadingStorage(false);
+      setRefreshingStorage(false);
+    }
+  };
 
   const fetchSettings = async (showLoading = false) => {
     try {
@@ -105,6 +142,7 @@ export default function SettingsView() {
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchSettings();
+      fetchStorageMetrics();
     }, 0);
     return () => {
       clearTimeout(timer);
@@ -369,6 +407,191 @@ export default function SettingsView() {
           </div>
         </FormBlock>
 
+
+        {/* 區塊三：儲存空間與資料庫狀態 */}
+        <div className="grid grid-cols-1 gap-10 lg:grid-cols-3">
+          <div className="flex flex-col space-y-1">
+            <h3 className="font-semibold text-lg text-zinc-100 flex items-center gap-2">
+              <Database size={20} className="text-indigo-400" />
+              儲存空間與資料庫狀態
+            </h3>
+            <p className="text-muted-foreground text-sm">
+              監控 PostgreSQL 實體磁碟佔用水位，以及步驟截圖與失敗畫面的空間佔比。
+            </p>
+          </div>
+
+          <div className="space-y-6 lg:col-span-2">
+            <Card className="border-zinc-800/80 bg-zinc-900/40">
+              <CardContent className="p-6 space-y-6">
+                {/* 頂部：標題與重新整理按鈕 */}
+                <div className="flex items-center justify-between pb-2 border-b border-zinc-800/60">
+                  <div className="space-y-0.5">
+                    <div className="text-sm font-medium text-zinc-200 flex items-center gap-2">
+                      <span>PostgreSQL 儲存分佈</span>
+                      {loadingStorage && (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" />
+                      )}
+                    </div>
+                    <p className="text-xs text-zinc-500">
+                      包含表格資料、TOAST 大型物件二進位檔與關聯索引
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={refreshingStorage || loadingStorage}
+                    onClick={() => {
+                      if (!refreshingStorage) {
+                        fetchStorageMetrics(true);
+                      }
+                    }}
+                    className="border-zinc-800 bg-zinc-900/80 hover:bg-zinc-800 hover:text-white text-zinc-300 text-xs cursor-pointer gap-1.5 transition-colors"
+                  >
+                    <RefreshCw
+                      className={`w-3.5 h-3.5 ${refreshingStorage ? "animate-spin text-indigo-400" : ""}`}
+                    />
+                    重新整理
+                  </Button>
+                </div>
+
+                {/* 指標卡片群組 (Bento Tiles) */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* 指標 1：資料庫總大小 */}
+                  <div className="rounded-lg border border-zinc-800/70 bg-zinc-950/40 p-4 space-y-2">
+                    <div className="flex items-center justify-between text-xs text-zinc-400">
+                      <span className="font-medium">資料庫實體總量</span>
+                      <HardDrive size={16} className="text-zinc-400" />
+                    </div>
+                    <div className="text-2xl font-bold text-zinc-100 tracking-tight">
+                      {storageMetrics?.databaseSize ?? "0 B"}
+                    </div>
+                    <p className="text-[11px] text-zinc-500 font-mono">
+                      {storageMetrics
+                        ? `${storageMetrics.databaseSizeBytes.toLocaleString()} Bytes`
+                        : "---"}
+                    </p>
+                  </div>
+
+                  {/* 指標 2：截圖佔用體積 */}
+                  <div className="rounded-lg border border-zinc-800/70 bg-zinc-950/40 p-4 space-y-2">
+                    <div className="flex items-center justify-between text-xs text-zinc-400">
+                      <span className="font-medium">截圖二進位體積</span>
+                      <ImageIcon size={16} className="text-indigo-400" />
+                    </div>
+                    <div className="text-2xl font-bold text-indigo-400 tracking-tight">
+                      {storageMetrics?.screenshots.size ?? "0 B"}
+                    </div>
+                    <p className="text-[11px] text-zinc-400">
+                      佔總體容量{" "}
+                      <span className="text-indigo-300 font-semibold font-mono">
+                        {storageMetrics?.screenshots.percentage ?? 0}%
+                      </span>
+                    </p>
+                  </div>
+
+                  {/* 指標 3：截圖張數 */}
+                  <div className="rounded-lg border border-zinc-800/70 bg-zinc-950/40 p-4 space-y-2">
+                    <div className="flex items-center justify-between text-xs text-zinc-400">
+                      <span className="font-medium">儲存截圖總張數</span>
+                      <Bot size={16} className="text-zinc-400" />
+                    </div>
+                    <div className="text-2xl font-bold text-zinc-100 tracking-tight">
+                      {storageMetrics ? `${storageMetrics.screenshots.count.toLocaleString()} 張` : "0 張"}
+                    </div>
+                    <p className="text-[11px] text-zinc-500">
+                      含步驟截圖與失敗畫面
+                    </p>
+                  </div>
+                </div>
+
+                {/* 空間分佈視覺長條圖 (Indigo vs Zinc) */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="flex items-center gap-1.5 text-indigo-400 font-medium">
+                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block" />
+                        截圖資料 ({storageMetrics?.screenshots.percentage ?? 0}%)
+                      </span>
+                      <span className="text-zinc-600">|</span>
+                      <span className="flex items-center gap-1.5 text-zinc-400">
+                        <span className="w-2.5 h-2.5 rounded-full bg-zinc-600 inline-block" />
+                        日誌、表格與索引 (
+                        {storageMetrics
+                          ? Math.max(0, parseFloat((100 - storageMetrics.screenshots.percentage).toFixed(1)))
+                          : 100}
+                        %)
+                      </span>
+                    </div>
+                    <span className="text-zinc-400 font-mono text-xs hidden sm:inline">
+                      {storageMetrics?.screenshots.size ?? "0 B"} / {storageMetrics?.databaseSize ?? "0 B"}
+                    </span>
+                  </div>
+
+                  <div className="h-3 w-full rounded-full bg-zinc-800/90 overflow-hidden flex p-0.5 border border-zinc-700/50">
+                    <div
+                      className="h-full bg-indigo-500 transition-all duration-500 rounded-full"
+                      style={{
+                        width: `${Math.max(
+                          0,
+                          Math.min(100, storageMetrics?.screenshots.percentage ?? 0)
+                        )}%`,
+                      }}
+                    />
+                    <div className="h-full bg-zinc-700/80 transition-all duration-500 flex-1 rounded-r-full" />
+                  </div>
+
+                  {storageMetrics && storageMetrics.screenshots.count === 0 && (
+                    <p className="text-xs text-zinc-500 italic">
+                      目前無任何截圖佔用空間（0 B / 0 張截圖）
+                    </p>
+                  )}
+                </div>
+
+                {/* 關鍵資料表實體排行 & 後續 retention 預留排版 */}
+                <div className="pt-2 border-t border-zinc-800/60 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* 主要資料表實體佔用 */}
+                  <div className="space-y-2">
+                    <div className="text-xs font-medium text-zinc-400">
+                      主要資料表排行 (含 TOAST & 索引)
+                    </div>
+                    <div className="space-y-1.5">
+                      {storageMetrics?.tables && storageMetrics.tables.length > 0 ? (
+                        storageMetrics.tables.map((tbl) => (
+                          <div
+                            key={tbl.tableName}
+                            className="flex items-center justify-between text-xs py-1 px-2 rounded bg-zinc-950/30 border border-zinc-800/40"
+                          >
+                            <span className="font-mono text-zinc-300">{tbl.tableName}</span>
+                            <span className="text-zinc-400 font-mono">{tbl.size}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-xs text-zinc-500 py-1">暫無表格排行資料</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 預留版面：未來 screenshot-retention 提案控制項 */}
+                  <div className="rounded-lg border border-dashed border-zinc-800/80 bg-zinc-950/20 p-3 flex flex-col justify-between space-y-2">
+                    <div className="space-y-1">
+                      <div className="text-xs font-medium text-zinc-300 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-zinc-500" />
+                        截圖生命週期管理
+                      </div>
+                      <p className="text-[11px] text-zinc-500 leading-relaxed">
+                        支援設定「截圖保留天數」與定期定時清理過期二進位圖片，保持資料庫輕量敏捷。
+                      </p>
+                    </div>
+                    <div className="pt-2 flex items-center justify-between text-[11px] text-zinc-500">
+                      <span>狀態：已規劃 (screenshot-retention)</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
         <Separator className="my-10" />
 
         {/* 危險區域 */}

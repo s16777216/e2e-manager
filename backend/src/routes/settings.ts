@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { getSettings, saveSettings } from "../services/settingsService.js";
+import { getDatabaseStorageMetrics } from "../services/storageService.js";
 import { AppDataSource } from "../db.js";
 import { TestRun } from "../entities/TestRun.js";
 
@@ -23,6 +24,17 @@ settingsRouter.post("/settings", async (c) => {
     return c.json(updated);
   } catch (error: any) {
     return c.json({ error: `更新設定失敗: ${error.message}` }, 500);
+  }
+});
+
+// GET /api/settings/storage
+settingsRouter.get("/settings/storage", async (c) => {
+  try {
+    const metrics = await getDatabaseStorageMetrics();
+    return c.json(metrics);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "未知錯誤";
+    return c.json({ error: `獲取資料庫儲存空間指標失敗: ${message}` }, 500);
   }
 });
 
