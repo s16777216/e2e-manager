@@ -6,7 +6,7 @@ import {
   SystemMessage,
 } from "@langchain/core/messages";
 
-import { TestState } from "./state.js";
+import { TestState, LogEntry } from "./state.js";
 import { BrowserManager } from "./browser.js";
 import { BrowserTools } from "./tools.js";
 import { AppDataSource } from "./db.js";
@@ -49,22 +49,65 @@ function parseContentToString(content: any): string {
   }
   return "";
 }
+export interface ParsedToolAction {
+  name: string;
+  args: Record<string, unknown>;
+}
+
+export function parseToolAction(action: string): ParsedToolAction | null {
+  if (!action || typeof action !== "string") return null;
+  const trimmed = action.trim();
+  const firstParen = trimmed.indexOf("(");
+  if (firstParen <= 0 || !trimmed.endsWith(")")) return null;
+
+  const toolName = trimmed.slice(0, firstParen).trim();
+  if (!/^[a-zA-Z0-9_]+$/.test(toolName)) return null;
+
+  const argsStr = trimmed.slice(firstParen + 1, trimmed.length - 1).trim();
+  if (!argsStr) {
+    return { name: toolName, args: {} };
+  }
+
+  try {
+    const parsed = JSON.parse(argsStr);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return { name: toolName, args: parsed };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function isToolExecutionFailed(toolResult: unknown): boolean {
+  if (typeof toolResult !== "string") {
+    return false;
+  }
+  const str = toolResult.trim();
+  if (str.includes("失敗")) return true;
+  if (str.startsWith("錯誤")) return true;
+  return false;
+}
+
 
 export class E2EGraphBuilder {
   private browserManager: BrowserManager;
+  private browserToolsInstance: BrowserTools;
   private tools: ClientTool[];
   private model!: Runnable;
   private summarizer_model?: Runnable;
   private executorModelSetting!: ModelSetting;
   private reportModelSetting?: ModelSetting;
   private sendFailureScreenshot: boolean = true;
+  private enableReplay: boolean = true;
 
   /**
    * 使用靜態 create() 工廠方法取得實例，以便在建構子外進行非同步設定載入。
    */
   private constructor(browserManager: BrowserManager) {
     this.browserManager = browserManager;
-    this.tools = new BrowserTools(browserManager).getTools();
+    this.browserToolsInstance = new BrowserTools(browserManager);
+    this.tools = this.browserToolsInstance.getTools();
   }
 
   /**
@@ -102,6 +145,7 @@ export class E2EGraphBuilder {
       // sendFailureScreenshot 從頂層讀取
       instance.sendFailureScreenshot = settings.sendFailureScreenshot ?? true;
 
+      instance.enableReplay = settings.enableReplay ?? true;
       return instance;
     } catch (err) {
       console.error(
@@ -123,6 +167,31 @@ export class E2EGraphBuilder {
       logs: [],
     };
   }
+  /**
+   * 查詢最新一筆 passed 執行的歷史工具日誌
+   */
+  async getLatestPassedStepLogs(
+    testcaseId: string,
+    testcaseVersion: number,
+    stepIdx: number,
+  ): Promise<TestLog[]> {
+    const stepRepo = AppDataSource.getRepository(TestRunStep);
+    const step = await stepRepo
+      .createQueryBuilder("step")
+      .innerJoin("step.run", "run")
+      .innerJoin("run.testcase", "testcase")
+      .leftJoinAndSelect("step.logs", "logs")
+      .where("testcase.id = :testcaseId", { testcaseId })
+      .andWhere("run.testcaseVersion = :testcaseVersion", { testcaseVersion })
+      .andWhere("step.stepIdx = :stepIdx", { stepIdx })
+      .andWhere("step.status = :status", { status: "passed" })
+      .orderBy("step.createdAt", "DESC")
+      .addOrderBy("logs.createdAt", "ASC")
+      .getOne();
+
+    return step?.logs || [];
+  }
+
 
   /**
    * 執行節點：負責擷取目前畫面、呼叫 Gemini 進行推理，並執行對應的 Playwright Tool Call
@@ -161,6 +230,149 @@ export class E2EGraphBuilder {
         ]);
       }
     }
+    // 檢查全域重放開關 (從最新設定或實例屬性)
+    let enableReplay = this.enableReplay;
+    try {
+      const currentSettings = await getSettings();
+      enableReplay = currentSettings.enableReplay ?? true;
+    } catch {}
+
+    const stepLogs = (state.logs || []).filter((l) => l.step_idx === idx);
+    const isFirstAttempt =
+      stepLogs.length === 0 && (state.step_retry_count ?? 0) === 0;
+
+    if (enableReplay && state.testcase_version && isFirstAttempt) {
+      const historicalLogs = await this.getLatestPassedStepLogs(
+        state.test_id,
+        state.testcase_version,
+        idx,
+      );
+
+      const parsedTools = historicalLogs
+        .map((log) => (log.action ? parseToolAction(log.action) : null))
+        .filter((t): t is ParsedToolAction => t !== null);
+
+      const hasDoneActing = parsedTools.some((t) => t.name === "done_acting");
+
+      if (parsedTools.length > 0 && hasDoneActing) {
+        console.log(
+          `[Replay] 步驟 ${idx + 1} 命中歷史版本 v${state.testcase_version} 之 passed 軌跡，包含 ${parsedTools.length} 個動作，啟動重放模式...`,
+        );
+
+        let replaySuccess = true;
+        let replayFailureReason = "";
+        const replayLogs: LogEntry[] = [];
+        let domNeedsRefresh = true;
+
+        this.browserToolsInstance.elementTimeout = 2000;
+
+        try {
+          for (let i = 0; i < parsedTools.length; i++) {
+            const toolAction = parsedTools[i];
+            const tool_name = toolAction.name;
+            const tool_args = toolAction.args;
+
+            // DOM ID 自動保障：若需要 id 參數且尚未刷新，先執行 observeWebPage
+            if (tool_args && "id" in tool_args && domNeedsRefresh) {
+              await this.browserManager.observeWebPage();
+              domNeedsRefresh = false;
+            }
+
+            const selected_tool = this.tools.find((t) => t.name === tool_name);
+            if (!selected_tool) {
+              throw new Error(`重放時找不到工具：${tool_name}`);
+            }
+
+            // 執行工具呼叫，搭配 2500ms 安全超時守門員
+            let timeoutTimer: NodeJS.Timeout | null = null;
+            const timeoutPromise = new Promise<never>((_, reject) => {
+              timeoutTimer = setTimeout(() => {
+                reject(new Error("等待元素超時超過 2000ms"));
+              }, 2500);
+            });
+
+            let tool_result: unknown;
+            try {
+              tool_result = await Promise.race([
+                selected_tool.invoke(tool_args),
+                timeoutPromise,
+              ]);
+            } finally {
+              clearTimeout(timeoutTimer!);
+            }
+
+            // 重放失敗判定邏輯：若回傳包含「失敗」或開頭為「錯誤」
+            if (isToolExecutionFailed(tool_result)) {
+              throw new Error(
+                typeof tool_result === "string"
+                  ? tool_result
+                  : "工具執行判定為失敗",
+              );
+            }
+
+            // 成功記錄該工具之 0 Token 重放日誌
+            replayLogs.push({
+              step_idx: idx,
+              step_description: step_content,
+              action: `${tool_name}(${JSON.stringify(tool_args)})`,
+              result:
+                typeof tool_result === "string"
+                  ? tool_result
+                  : JSON.stringify(tool_result),
+              timestamp: new Date().toISOString(),
+              prompt_tokens: 0,
+              completion_tokens: 0,
+              total_tokens: 0,
+            });
+
+            // 若執行完 navigate_to 或 waitForNavigation，標記並刷新 DOM ID
+            const waitStrategy = (
+              tool_args as { waitStrategy?: string } | undefined
+            )?.waitStrategy;
+            if (
+              tool_name === "navigate_to" ||
+              waitStrategy === "waitForNavigation"
+            ) {
+              await this.browserManager.observeWebPage();
+              domNeedsRefresh = false;
+            } else if (tool_name === "click") {
+              // 點擊可能動態改變頁面元素，下個需要 id 的動作需再確保刷新
+              domNeedsRefresh = true;
+            }
+          }
+        } catch (replayErr: unknown) {
+          replaySuccess = false;
+          replayFailureReason =
+            replayErr instanceof Error
+              ? replayErr.message
+              : String(replayErr);
+        } finally {
+          this.browserToolsInstance.elementTimeout = 5000;
+        }
+
+        if (replaySuccess) {
+          console.log(
+            `[Replay] 步驟 ${idx + 1} 重放成功完成（0 Token 消耗）！推進至 stepTrackerNode...`,
+          );
+          // 4.2 若重放順利執行完包含 done_acting 的所有工具，生成 0 Token 消耗日誌，推進至 stepTrackerNode
+          return {
+            logs: [...(state.logs || []), ...replayLogs],
+            step_retry_count: 0,
+          };
+        } else {
+          // 4.1 重放失敗交棒處理：
+          // 1. 清除當前步驟在重放期間寫入的臨時暫存日誌 (replayLogs 不併入 state.logs)
+          // 2. 保留瀏覽器當前操作現場 (不關閉、不重整)
+          // 3. 重設 step_retry_count = 0，給予 LLM 完整的重試容錯空間
+          // 4. 重新呼叫 observeWebPage() 擷取最新畫面與元素清單，無縫交棒至一般的 LLM Executor 推導
+          console.warn(
+            `[Replay] 步驟 ${idx + 1} 重放中斷/失敗：${replayFailureReason}。正在交棒啟動 LLM 自我修復 (Self-healing)...`,
+          );
+          state.step_retry_count = 0;
+        }
+      }
+    }
+
 
     // 1. 框架預熱：呼叫 observeWebPage() 注入 ID、渲染貼紙、截圖、清除貼紙
     //    回傳帶有 ID 標籤的截圖與元素清單，一次傳給 LLM
@@ -194,12 +406,12 @@ export class E2EGraphBuilder {
     });
 
     // 2.5 取得當前步驟的歷史執行紀錄（包含工具呼叫與驗證失敗反饋）
-    const stepLogs = (state.logs || []).filter((l) => l.step_idx === idx);
+    const currentStepLogs = (state.logs || []).filter((l) => l.step_idx === idx);
     let historyPrompt = "";
-    if (stepLogs.length > 0) {
+    if (currentStepLogs.length > 0) {
       historyPrompt =
         "\n\n# Execution History for the Current Step (Learn from failures/retries):\n" +
-        stepLogs
+        currentStepLogs
           .map((log, i) => {
             return `Action ${i + 1}: ${log.action}\nResult/Feedback: ${log.result}`;
           })

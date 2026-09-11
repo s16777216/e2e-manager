@@ -22,6 +22,9 @@ export class SystemSetting {
 
   @Column("boolean", { default: true })
   sendFailureScreenshot!: boolean;
+  @Column("boolean", { default: true })
+  enableReplay!: boolean;
+
 
   @Column("jsonb", { nullable: true })
   aiConfig?: {

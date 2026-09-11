@@ -36,6 +36,7 @@ const settingsSchema = z.object({
     .min(240, "高度至少為 240")
     .max(2160, "高度最大為 2160"),
   sendFailureScreenshot: z.boolean(),
+  enableReplay: z.boolean(),
 });
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
@@ -86,6 +87,7 @@ export default function SettingsView() {
         viewportWidth: Number(data.viewportWidth),
         viewportHeight: Number(data.viewportHeight),
         sendFailureScreenshot: data.sendFailureScreenshot ?? true,
+        enableReplay: data.enableReplay ?? true,
       });
       // 載入 aiConfig
       const ai = data.aiConfig ?? {};
@@ -122,6 +124,7 @@ export default function SettingsView() {
           viewportWidth: data.viewportWidth,
           viewportHeight: data.viewportHeight,
           sendFailureScreenshot: data.sendFailureScreenshot,
+          enableReplay: data.enableReplay,
         }),
       });
       if (!res.ok) throw new Error("無法儲存設定");
@@ -249,6 +252,23 @@ export default function SettingsView() {
                 name="sendFailureScreenshot"
                 label="傳送失敗截圖給報告模型"
                 description="若報告模型不支援多模態（非視覺模型），請關閉此項"
+              >
+                {(field, id) => (
+                  <div className="flex items-center mt-2">
+                    <Switch
+                      id={id}
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </div>
+                )}
+              </FormField>
+            </div>
+            <div className="sm:col-span-2">
+              <FormField
+                name="enableReplay"
+                label="啟用歷史軌跡重放 (Replay Mode)"
+                description="當開啟時，若相同測試案例版本先前已有成功紀錄，將優先重放歷史工具操作，降低 Token 成本並加速執行；重放失敗時自動無縫交棒給 LLM 修復"
               >
                 {(field, id) => (
                   <div className="flex items-center mt-2">

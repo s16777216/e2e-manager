@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn, VersionColumn } from "typeorm";
 import { TestGroup } from "./TestGroup.js";
 import { TestRun } from "./TestRun.js";
 import { TestcaseStep } from "./TestcaseStep.js";
@@ -7,6 +7,9 @@ import { TestcaseStep } from "./TestcaseStep.js";
 export class Testcase {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
+  @VersionColumn({ default: 1 })
+  version!: number;
+
 
   @Column("varchar")
   name!: string;

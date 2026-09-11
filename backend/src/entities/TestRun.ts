@@ -10,6 +10,9 @@ export class TestRun {
 
   @Column("varchar", { default: "pending" })
   status!: string; // pending | running | passed | failed | error
+  @Column("integer", { default: 1 })
+  testcaseVersion!: number;
+
 
   @Column("timestamptz", { nullable: true })
   startedAt?: Date;

@@ -19,17 +19,25 @@
 
 ### Requirement: LLM TS Step Reasoning using Playwright Tools
 對於每個步驟，系統 MUST 支援「重放模式 (Replay Mode)」與「LLM 推導模式 (Agent Mode)」的雙軌執行。
-- 當該測試步驟於先前的執行中已有成功完成（`passed`）的工具執行日誌（`TestLog`）時，系統 MUST 進入重放模式，依序執行該成功日誌中的工具呼叫，而不發送請求給 LLM。
-- 當重放過程中拋出任何異常（例如 Playwright 執行工具超時、元素不可見等），或者該步驟原本就沒有成功的重放日誌時，系統 MUST 進入 LLM 推導模式（自我修復），將「當前步驟描述」、「當前網址」、「當前 DOM 結構」與「當前視窗截圖」發送給 Gemini LLM。由 LLM 根據這些資訊，決策並呼叫合適的 Playwright 模擬操作工具，並在網址相符時引導其呼叫 finish_step。系統向 LLM 發送提示詞時，MUST 使用結構化全英文的 System Prompt (English Core) 作為角色定義、步驟引導與強烈規則約束，以確保最高的指令遵循率與工具調用精準度。
+- **重放觸發條件**：當全域設定 `enableReplay` 為開啟，且該測試步驟於先前的執行中已有相同測試案例版本（`testcaseVersion`）且成功完成（`passed`）的工具執行日誌（`TestLog`）時，系統 MUST 進入重放模式，依序執行該成功日誌中的工具呼叫，而不發送請求給 LLM。
+- **DOM ID 自動保障**：在重放模式下，若即將執行需要 `id` 參數的工具前，或在執行頁面跳轉工具（如 `navigate_to`）後，系統 MUST 確保呼叫 `observeWebPage()` 刷新頁面之 `data-e2e-agent-id` 標記。
+- **自我修復判定與無縫交棒**：當重放過程中發生以下任一狀況：
+  1. 工具執行拋出例外；
+  2. 工具回傳字串包含「失敗」或開頭為「錯誤」；
+  3. 等待元素超時超過 2000ms；
+  系統 MUST 判定重放失敗並啟動自我修復（Self-healing）：拋棄當前步驟已執行的重放暫存日誌，保留瀏覽器當前畫面現場，將單步重試計數（`step_retry_count`）歸零，呼叫 `observeWebPage()` 重新感知並切換回 LLM 推導模式。由 LLM 根據「當前步驟描述」、「當前網址」、「當前 DOM 結構」與「當前視窗截圖」重新推導合適的動作，並在完成時呼叫 `done_acting`。系統向 LLM 發送提示詞時，MUST 使用結構化全英文的 System Prompt (English Core) 作為角色定義、步驟引導與強烈規則約束，以確保最高的指令遵循率與工具調用精準度。
 
 #### Scenario: Execute TS tool call for step via Replay
-- **WHEN** 執行步驟時，若該步驟存在上一次執行成功（passed）的工具執行紀錄
-- **THEN** 系統直接重放舊有的工具紀錄，完成步驟操作，而不呼叫 LLM 進行推導
+- **WHEN** 執行測試步驟時，全域 `enableReplay` 開啟，且該步驟存在相同 `testcaseVersion` 之最新 passed 執行紀錄
+- **THEN** 系統依序重放舊有的工具日誌並於操作前確保 DOM ID 存在，完成步驟操作，消耗 0 個 LLM Token
 
-#### Scenario: Execute TS tool call for step via Agent fallback
-- **WHEN** 執行步驟時，若無歷史成功紀錄，或是重放工具時發生 Playwright 異常
-- **THEN** 系統自動切換回 LLM 推導模式，由 Gemini LLM 重新觀察頁面並推導出正確的操作，並更新該步驟的成功工具紀錄
+#### Scenario: Bypass Replay on Version Mismatch
+- **WHEN** 執行測試步驟時，該測試案例版本已更新（`version` 不等於歷史紀錄之 `testcaseVersion`），或全域 `enableReplay` 為關閉
+- **THEN** 系統略過重放模式，直接進入 LLM 推導模式進行決策
 
+#### Scenario: Execute TS tool call for step via Self-healing fallback
+- **WHEN** 執行重放時，工具回傳失敗、超時 2000ms 或拋出例外
+- **THEN** 系統自動拋棄該步重放暫存日誌，重設單步重試次數，保留瀏覽器現場並由 LLM 重新觀察推導出正確操作，於測試通過後更新成功日誌
 ### Requirement: observe_web_page tool
 系統 MUST 提供 `observe_web_page` 工具，用以擷取網頁中所有可見、可互動的元素（例如按鈕、連結、輸入框、下拉選單），將這些元素標記唯一數字 ID，並回傳格式化後的純文字清單。
 

@@ -27,6 +27,10 @@ export async function getSettings(): Promise<
     setting = new SystemSetting();
     await settingRepo.save(setting);
   }
+  if (setting.enableReplay === undefined || setting.enableReplay === null) {
+    setting.enableReplay = true;
+  }
+
 
   // 在應用層補填 aiConfig 預設值，確保呼叫方永遠取得完整結構
   const dbAiConfig = setting.aiConfig ?? {};

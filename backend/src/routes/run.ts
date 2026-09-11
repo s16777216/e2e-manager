@@ -28,6 +28,7 @@ runRouter.post("/testcases/:id/run", async (c) => {
 
   const run = new TestRun();
   run.testcase = testcase;
+  run.testcaseVersion = testcase.version ?? 1;
   run.status = "pending";
   run.task = task;
 
@@ -84,6 +85,7 @@ runRouter.post("/projects/:projectId/run", async (c) => {
   for (const testcase of testcases) {
     const run = new TestRun();
     run.testcase = testcase;
+    run.testcaseVersion = testcase.version ?? 1;
     run.status = "pending";
     run.task = task;
     await runRepo.save(run);
@@ -174,6 +176,7 @@ runRouter.post("/groups/:groupId/run", async (c) => {
   for (const testcase of testcases) {
     const run = new TestRun();
     run.testcase = testcase;
+    run.testcaseVersion = testcase.version ?? 1;
     run.status = "pending";
     run.task = task;
     await runRepo.save(run);

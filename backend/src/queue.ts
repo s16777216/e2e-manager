@@ -120,6 +120,11 @@ export class TaskQueue {
       console.error(`[Worker] 找不到測試案例：${testcase.id}`);
       return;
     }
+    if (!run.testcaseVersion && fullTestcase.version) {
+      run.testcaseVersion = fullTestcase.version;
+      await AppDataSource.getRepository(TestRun).update(run.id, { testcaseVersion: fullTestcase.version });
+    }
+
 
     const groupsChain: TestGroup[] = [];
     let currentGroup = fullTestcase.group;
@@ -323,6 +328,7 @@ export class TaskQueue {
       const initial_state = {
         run_id: run.id,
         test_id: testcase.id,
+        testcase_version: run.testcaseVersion ?? fullTestcase.version ?? 1,
         test_name: testcase.name,
         steps: stepsArray,
         step_expecteds: expectedsArray,

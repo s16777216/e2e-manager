@@ -3,6 +3,7 @@ import { z } from "zod";
 import { BrowserManager } from "./browser.js";
 
 export class BrowserTools {
+  public elementTimeout: number = 5000;
   constructor(private browserManager: BrowserManager) {}
 
   /**
@@ -69,7 +70,7 @@ export class BrowserTools {
           const selector = `[data-e2e-agent-id="${id}"]`;
           await page.waitForSelector(selector, {
             state: "visible",
-            timeout: 5000,
+            timeout: this.elementTimeout,
           });
 
           if (waitStrategy === "waitForNavigation") {
@@ -83,7 +84,7 @@ export class BrowserTools {
             await page.click(selector);
             await page
               .getByText(expectedText)
-              .waitFor({ state: "visible", timeout: 5000 });
+              .waitFor({ state: "visible", timeout: this.elementTimeout });
             return `已點擊元素 ID ${id}，並確認畫面出現「${expectedText}」。`;
           } else {
             await page.click(selector);
@@ -129,7 +130,7 @@ export class BrowserTools {
           const selector = `[data-e2e-agent-id="${id}"]`;
           await page.waitForSelector(selector, {
             state: "visible",
-            timeout: 5000,
+            timeout: this.elementTimeout,
           });
           await page.fill(selector, text);
           return `已在元素 ID ${id} 中輸入：'${text}'`;
@@ -166,7 +167,7 @@ export class BrowserTools {
             const selector = `[data-e2e-agent-id="${id}"]`;
             await page.waitForSelector(selector, {
               state: "visible",
-              timeout: 5000,
+              timeout: this.elementTimeout,
             });
             await page.focus(selector);
           }
@@ -181,7 +182,7 @@ export class BrowserTools {
             await page.keyboard.press(keyName);
             await page
               .getByText(expectedText)
-              .waitFor({ state: "visible", timeout: 5000 });
+              .waitFor({ state: "visible", timeout: this.elementTimeout });
             return `已按下「${keyName}」，並確認畫面出現「${expectedText}」。`;
           } else {
             await page.keyboard.press(keyName);
@@ -229,7 +230,7 @@ export class BrowserTools {
           const selector = `[data-e2e-agent-id="${id}"]`;
           await page.waitForSelector(selector, {
             state: "visible",
-            timeout: 5000,
+            timeout: this.elementTimeout,
           });
           await page.hover(selector);
           return `已將滑鼠懸停至元素 ID ${id}。`;
